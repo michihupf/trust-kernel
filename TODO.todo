@@ -1,0 +1,7 @@
+- Multiboot support (grub, shim, rEFInd)
+- UEFI support
+- ACPI and APM power management
+- Segmentation backwards compatability (low priority)
+- USB protocol support
+- APIC timer
+- Recursive Page Tables

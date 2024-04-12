@@ -4,7 +4,7 @@
 
 use core::panic::PanicInfo;
 
-use rustos::{exit_qemu, serial_print, serial_println, QemuExitCode};
+use trust::{exit_qemu, serial_print, serial_println, QemuExitCode};
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
@@ -13,16 +13,16 @@ pub extern "C" fn _start() -> ! {
     exit_qemu(QemuExitCode::Fail);
 
     // CPU never halts because we exit qemu before
-    rustos::hlt_forever();
+    trust::hlt_forever();
 }
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     serial_println!("\r[ok] should_panic::wrong_assertion");
-    exit_qemu(rustos::QemuExitCode::Success);
+    exit_qemu(trust::QemuExitCode::Success);
 
     // CPU never halts because we exit qemu before
-    rustos::hlt_forever();
+    trust::hlt_forever();
 }
 
 fn wrong_assertion() {

@@ -5,3 +5,5 @@
 - USB protocol support
 - APIC timer
 - Recursive Page Tables
+
+- Remove unneeded dependencies

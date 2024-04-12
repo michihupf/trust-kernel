@@ -4,7 +4,7 @@
 #![no_main]
 // set up testing
 #![feature(custom_test_frameworks)]
-#![test_runner(rustos::test_runner)]
+#![test_runner(trust::test_runner)]
 #![reexport_test_harness_main = "test_main"] // test main function should be renamed from main() because of no_main
 #![allow(clippy::empty_loop)]
 

@@ -5,14 +5,14 @@
 use core::panic::PanicInfo;
 
 use lazy_static::lazy_static;
-use rustos::{exit_qemu, gdt::DOUBLE_FAULT_IST_INDEX, serial_print, serial_println};
+use trust::{exit_qemu, gdt::DOUBLE_FAULT_IST_INDEX, serial_print, serial_println};
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     serial_print!("Testing stack overflow...\t");
 
-    rustos::gdt::init();
+    trust::gdt::init();
     init_test_idt();
 
     // trigger stack overflow
@@ -38,10 +38,10 @@ extern "x86-interrupt" fn double_fault_handler(
     _error_code: u64,
 ) -> ! {
     serial_println!("\r[ok] stack overflow test ");
-    exit_qemu(rustos::QemuExitCode::Success);
+    exit_qemu(trust::QemuExitCode::Success);
 
     // CPU never halts because we exit qemu before
-    rustos::hlt_forever();
+    trust::hlt_forever();
 }
 
 fn init_test_idt() {
@@ -56,5 +56,5 @@ fn stack_overflow() {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    rustos::test_panic_handler(info);
+    trust::test_panic_handler(info);
 }

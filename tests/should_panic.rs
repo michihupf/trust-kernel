@@ -3,7 +3,6 @@
 #![allow(clippy::empty_loop)]
 
 use core::panic::PanicInfo;
-
 use trust::{exit_qemu, serial_print, serial_println, QemuExitCode};
 
 #[no_mangle]

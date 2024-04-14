@@ -1,11 +1,9 @@
+use crate::{gdt, hlt_forever, println};
+#[allow(unused_imports)]
+use core::arch::asm;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
-
-use crate::{gdt, hlt_forever, print, println};
-#[allow(unused_imports)]
-use core::arch::asm;
-use core::sync::atomic::AtomicUsize;
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -40,6 +38,7 @@ lazy_static! {
         // TODO: Security Exception
 
         // PIC 8259 Hardware Interrupts
+
         // Intel 8253 timer interrupt handler
         idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
         // PS/2 Keyboard interrupt handler
@@ -159,18 +158,20 @@ impl InterruptIndex {
 
 /// Interrupt handler for the Intel 8253 timer interrupt.
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    static COUNTER: AtomicUsize = AtomicUsize::new(0);
-    let current = COUNTER.fetch_add(1, core::sync::atomic::Ordering::Relaxed) % 78;
+    // use core::sync::atomic::AtomicUsize;
 
-    let mut s: [u8; 80] = [b' '; 80];
-    s[0] = b'[';
-    s[79] = b']';
-    s[current + 1] = b'>';
-    for i in 0..current {
-        s[i + 1] = b'=';
-    }
+    // static COUNTER: AtomicUsize = AtomicUsize::new(0);
+    // let current = COUNTER.fetch_add(1, core::sync::atomic::Ordering::Relaxed) % 78;
 
-    print!("\r{}", core::str::from_utf8(&s).unwrap());
+    // let mut s: [u8; 80] = [b' '; 80];
+    // s[0] = b'[';
+    // s[79] = b']';
+    // s[current + 1] = b'>';
+    // for i in 0..current {
+    //     s[i + 1] = b'=';
+    // }
+
+    // print!("\r{}", core::str::from_utf8(&s).unwrap());
 
     // send EOI after successful handling
     unsafe {
@@ -181,32 +182,12 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
 
 /// Interrupt handler for the PS/2 Keyboard interrupt.
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
-    use spin::Mutex;
     use x86_64::instructions::port::Port;
-
-    lazy_static! {
-        static ref KEYBOARD: Mutex<Keyboard<layouts::Us104Key, ScancodeSet1>> = Mutex::new(
-            Keyboard::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore)
-        );
-    }
-
-    let mut keyboard = KEYBOARD.lock();
 
     // read the scancode from the PS/2 port (0x60)
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
-
-    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-        if let Some(key) = keyboard.process_keyevent(key_event) {
-            match key {
-                // print the unicode character to the VGA interface
-                DecodedKey::Unicode(char) => print!("{}", char),
-                // print the key to the VGA interface
-                DecodedKey::RawKey(key) => print!("{:?}", key),
-            }
-        }
-    }
+    crate::task::keyboard::add_scancode(scancode);
 
     // send EOI after successful handling
     unsafe {

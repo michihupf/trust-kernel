@@ -3,7 +3,6 @@
 #![feature(abi_x86_interrupt)]
 
 use core::panic::PanicInfo;
-
 use lazy_static::lazy_static;
 use trust::{exit_qemu, gdt::DOUBLE_FAULT_IST_INDEX, serial_print, serial_println};
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};

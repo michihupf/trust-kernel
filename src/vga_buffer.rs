@@ -1,5 +1,3 @@
-// vga_buffer.rs
-
 use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
@@ -32,7 +30,7 @@ pub enum Color {
 /// formed from the foreground and background color. The blink bit (bit 7) is included in
 /// background color.
 ///
-/// The code is constructed from the background color B and the foreground color F in the 
+/// The code is constructed from the background color B and the foreground color F in the
 /// following way: B << 4 | F.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
@@ -144,7 +142,7 @@ impl Writer {
         for byte in str.bytes() {
             match byte {
                 // check for printable ASCII
-                0x20..=0x7e | b'\n' | b'\r' 
+                0x20..=0x7e | b'\n' | b'\r'
                 | 0x08 /* Backspace (BS)*/ => self.write(byte),
                 b'\t' => self.write_string("    "),
                 0x7f => self.write_string("<DEL>"),

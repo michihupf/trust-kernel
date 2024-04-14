@@ -1,5 +1,3 @@
-// basic_boot.rs
-
 #![no_std]
 #![no_main]
 #![feature(custom_test_frameworks)]
@@ -8,7 +6,6 @@
 #![allow(clippy::empty_loop)]
 
 use core::panic::PanicInfo;
-
 use trust::println;
 
 #[no_mangle]

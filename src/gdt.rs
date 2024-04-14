@@ -1,3 +1,4 @@
+use crate::{print, println};
 use lazy_static::lazy_static;
 use x86_64::{
     registers::segmentation::Segment,
@@ -7,8 +8,6 @@ use x86_64::{
     },
     VirtAddr,
 };
-
-use crate::{print, println};
 
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 

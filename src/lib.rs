@@ -1,5 +1,3 @@
-// src/lib.rs
-
 #![no_std]
 #![cfg_attr(test, no_main)]
 #![feature(custom_test_frameworks)]
@@ -8,17 +6,22 @@
 // enable x86-interrupt ABI
 #![feature(abi_x86_interrupt)]
 #![feature(asm_const)]
+// needed for implementing a linked list allocator
+#![feature(const_mut_refs)]
 
-use core::panic::PanicInfo;
+pub mod gdt;
+pub mod heap;
+pub mod idt;
+pub mod memory;
+pub mod serial;
+pub mod task;
+pub mod vga_buffer;
 
 #[allow(unused_imports)]
 use bootloader::{entry_point, BootInfo};
+use core::panic::PanicInfo;
 
-pub mod gdt;
-pub mod interrupts;
-pub mod memory;
-pub mod serial;
-pub mod vga_buffer;
+extern crate alloc;
 
 #[cfg(test)]
 entry_point!(test_kernel_main);
@@ -38,7 +41,7 @@ fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
 /// Initializes IDT and GDT.
 pub fn init() {
     println!("Initializing IDT...");
-    interrupts::init_idt();
+    idt::init_idt();
     println!("IDT initialized.");
 
     println!("Initializing GDT...");
@@ -47,10 +50,10 @@ pub fn init() {
 
     // Initialize the PIC 8259 interrupt controller.
     print!("Initializing 8259 PIC... ");
-    unsafe { interrupts::PICS.lock().initialize() };
+    unsafe { idt::PICS.lock().initialize() };
     println!("[ok]");
     x86_64::instructions::interrupts::enable();
-    println!("Enabled external interrupts");
+    println!("Enabled external interrupts.");
 }
 
 pub fn hlt_forever() -> ! {

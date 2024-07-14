@@ -5,13 +5,22 @@
 #![test_runner(trust::test_runner)]
 #![reexport_test_harness_main = "test_main"] // test main function should be renamed from main() because of no_main
 #![allow(clippy::empty_loop)]
+#![warn(
+    clippy::all,
+    clippy::cargo,
+    clippy::complexity,
+    clippy::correctness,
+    clippy::pedantic,
+    clippy::perf
+)]
+#![allow(clippy::cargo_common_metadata)]
 
 extern crate alloc;
 
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use trust::{
-    heap, memory, println,
+    heap, memory, println, serial_println,
     task::{executor::Executor, keyboard, Task},
 };
 use x86_64::{structures::paging::Page, VirtAddr};
@@ -38,7 +47,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     heap::init(&mut mapper, &mut frame_allocator).expect("heap initialization failed.");
 
     // map an unused page
-    let page = Page::containing_address(VirtAddr::new(0xdeadbeef));
+    let page = Page::containing_address(VirtAddr::new(0xdead_beef));
     memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
 
     // write "New!" to the screen though memory mapping
@@ -56,6 +65,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     executor.run();
 }
 
+#[allow(clippy::unused_async)]
 async fn async_num() -> u32 {
     69420
 }

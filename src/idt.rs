@@ -1,4 +1,4 @@
-use crate::{gdt, hlt_forever, println};
+use crate::{gdt, hlt_forever, print, println};
 #[allow(unused_imports)]
 use core::arch::asm;
 use lazy_static::lazy_static;
@@ -14,6 +14,7 @@ lazy_static! {
         // TODO: Non-maskable Interrupt
         idt.breakpoint.set_handler_fn(breakpoint_handler);
         idt.overflow.set_handler_fn(overflow_handler);
+        idt.bound_range_exceeded.set_handler_fn(bound_range_exceeded_handler);
         // TODO: Bound Range Exceeded
         // TODO: Invalid Opcode
         // TODO: Device Not Available
@@ -49,7 +50,9 @@ lazy_static! {
 }
 
 pub fn init_idt() {
+    print!("Initializing IDT... ");
     IDT.load();
+    println!("[ok]");
 }
 
 /// Exception handler for a division by zero exception.
@@ -60,7 +63,6 @@ extern "x86-interrupt" fn div_by_zero_handler(stack_frame: InterruptStackFrame) 
 #[test_case]
 fn test_div_by_zero_exception() {
     // invoke a division by zero exception by invoking a 0x0 software interrupt.
-    // This action is inheritly unsafe.
     unsafe {
         x86_64::software_interrupt!(0x0);
     }
@@ -74,7 +76,6 @@ extern "x86-interrupt" fn debug_handler(stack_frame: InterruptStackFrame) {
 #[test_case]
 fn test_debug_exception() {
     // invoke a debug exception by invoking a 0x1 software interrupt.
-    // This action is inheritly unsafe.
     unsafe {
         x86_64::software_interrupt!(0x1);
     }
@@ -99,9 +100,25 @@ extern "x86-interrupt" fn overflow_handler(stack_frame: InterruptStackFrame) {
 #[test_case]
 fn test_overflow_exception() {
     // invoke an overflow exception by invoking a 0x4 software interrupt.
-    // This action is inheritly unsafe.
     unsafe {
         x86_64::software_interrupt!(0x4);
+    }
+}
+
+/// Exception handler for a bound range exceeded exception.
+///
+/// # Bound Range Exceeded
+/// This error occurs when an array index is out of bounds when checked
+/// with the BOUND instruction against and array with lower and upper bound.
+extern "x86-interrupt" fn bound_range_exceeded_handler(stack_frame: InterruptStackFrame) {
+    println!("CPU EXCEPTION: BOUND RANGE EXCEEDED\n{:#?}", stack_frame);
+}
+
+#[test_case]
+fn test_bound_range_exceeded() {
+    // invoke a 0x5 software interrupt
+    unsafe {
+        x86_64::software_interrupt!(0x5);
     }
 }
 

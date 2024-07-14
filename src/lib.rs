@@ -1,3 +1,7 @@
+//! # tRust
+//!
+//! A small kernel written in Rust to learn about how kernels work.
+
 #![no_std]
 #![cfg_attr(test, no_main)]
 #![feature(custom_test_frameworks)]
@@ -38,20 +42,15 @@ fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
     hlt_forever();
 }
 
-/// Initializes IDT and GDT.
+/// Initializes important systems like IDT, GDT and PIC8259.
 pub fn init() {
-    println!("Initializing IDT...");
-    idt::init_idt();
-    println!("IDT initialized.");
-
-    println!("Initializing GDT...");
     gdt::init();
-    println!("GDT initialized.");
+    idt::init_idt();
 
-    // Initialize the PIC 8259 interrupt controller.
     print!("Initializing 8259 PIC... ");
     unsafe { idt::PICS.lock().initialize() };
     println!("[ok]");
+
     x86_64::instructions::interrupts::enable();
     println!("Enabled external interrupts.");
 }

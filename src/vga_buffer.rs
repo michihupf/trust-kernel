@@ -1,7 +1,8 @@
-use core::fmt;
+use core::{fmt, ptr};
 use lazy_static::lazy_static;
 use spin::Mutex;
-use volatile::Volatile;
+
+use crate::serial_println;
 
 /// The Color enum is an abstraction for the 4-bit VGA text buffer colors.
 #[allow(dead_code)]
@@ -57,7 +58,25 @@ const BUFFER_SIZE_Y: usize = 25;
 
 #[repr(transparent)]
 struct Buffer {
-    chars: [[Volatile<ScreenChar>; BUFFER_SIZE_X]; BUFFER_SIZE_Y],
+    chars: [[ScreenChar; BUFFER_SIZE_X]; BUFFER_SIZE_Y],
+}
+
+impl Buffer {
+    /// Writes character `c` to `row`,`col` in the VGA buffer.
+    fn write(&mut self, row: usize, col: usize, c: ScreenChar) {
+        unsafe {
+            // UNSAFE: all pointers in `chars` point to a valid char in the VGA buffer.
+            ptr::write_volatile(&mut self.chars[row][col], c);
+        }
+    }
+
+    /// Reads a character from the VGA buffer at position `row`,`col`.
+    fn read(&self, row: usize, col: usize) -> ScreenChar {
+        unsafe {
+            // UNSAFE: all pointers in `chars` point to a valid char in the VGA buffer.
+            ptr::read_volatile(&self.chars[row][col])
+        }
+    }
 }
 
 /// A writer can be used to modify the VGA text buffer.
@@ -79,17 +98,21 @@ impl Writer {
             0x08 => self.backspace(),
             byte => {
                 if self.column_pos >= BUFFER_SIZE_X {
-                    self.newline()
+                    self.newline();
                 }
 
                 let row = BUFFER_SIZE_Y - 1;
                 let col = self.column_pos;
 
                 let color_code = self.color_code;
-                self.buffer.chars[row][col].write(ScreenChar {
-                    ascii: byte,
-                    color_code,
-                });
+                self.buffer.write(
+                    row,
+                    col,
+                    ScreenChar {
+                        ascii: byte,
+                        color_code,
+                    },
+                );
                 self.column_pos += 1;
             }
         }
@@ -100,8 +123,8 @@ impl Writer {
         // move every character up by one row
         for row in 1..BUFFER_SIZE_Y {
             for col in 0..BUFFER_SIZE_X {
-                let char = self.buffer.chars[row][col].read();
-                self.buffer.chars[row - 1][col].write(char);
+                let char = self.buffer.read(row, col);
+                self.buffer.write(row - 1, col, char);
             }
         }
         self.clear_row(BUFFER_SIZE_Y - 1);
@@ -114,7 +137,7 @@ impl Writer {
             color_code: self.color_code,
         };
         for col in 0..BUFFER_SIZE_X {
-            self.buffer.chars[row][col].write(blank);
+            self.buffer.write(row, col, blank);
         }
         self.column_pos = 0;
     }
@@ -133,7 +156,7 @@ impl Writer {
 
         // column of the last typed char
         let col = self.column_pos - 1;
-        self.buffer.chars[BUFFER_SIZE_Y - 1][col].write(blank);
+        self.buffer.write(BUFFER_SIZE_Y - 1, col, blank);
         self.column_pos = col;
     }
 
@@ -170,6 +193,9 @@ lazy_static! {
 }
 
 /// Prints a formatted string to the VGA text buffer using the global `WRITER`.
+///
+/// This is a helper method and should not be used barebones. Use [`print!`][print!] or [`println!`][println!]
+/// instead.
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
@@ -181,12 +207,43 @@ pub fn _print(args: fmt::Arguments) {
 }
 
 /// This macro is used to print to the VGA text buffer.
+///
+/// # Examples
+/// ```
+/// print!("123"); // prints 123 on the VGA display.
+/// print!("{}\n", 123); // also prints 123
+///
+/// let a = 5;
+/// print!("{a}"); // prints 5
+/// ```
+/// The above code will produce the following output
+/// ```
+/// 123123
+/// 5
+/// ```
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
 }
 
-/// This macro is used to print to the VGA text buffer. Newline is appended.
+/// This macro is used to print to the VGA text buffer.
+///
+/// A newline appended at the end. The usage of this macro is analogous to [`print!`][print!].
+///
+/// # Examples
+/// ```
+/// println!("123"); // prints 123 on the VGA display followed by a newline.
+/// println!("{}", 123);
+///
+/// let a = 5;
+/// println!("{a}"); // prints 5
+/// ```
+/// The above code will produce the following output
+/// ```
+/// 123
+/// 123
+/// 5
+/// ```
 #[macro_export]
 macro_rules! println {
     () => ($crate::print!("\n"));
@@ -225,9 +282,9 @@ fn vga_text_buffer_functionality() {
     let s = "Content";
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
-        writeln!(writer, "\n{}", s).expect("writeln failed");
+        write!(writer, "\n{}", s).expect("writeln failed");
         for (i, c) in s.chars().enumerate() {
-            let screen_char = writer.buffer.chars[BUFFER_SIZE_Y - 2][i].read();
+            let screen_char = writer.buffer.read(BUFFER_SIZE_Y - 1, i);
             assert_eq!(char::from(screen_char.ascii), c);
         }
     });
@@ -249,7 +306,7 @@ fn vga_text_buffer_backspace() {
         }
         for i in 0..s.len() {
             // check that the i-th character is ' '
-            let screen_char = writer.buffer.chars[BUFFER_SIZE_Y - 1][i].read();
+            let screen_char = writer.buffer.read(BUFFER_SIZE_Y - 1, i);
             assert_eq!(char::from(screen_char.ascii), ' ');
         }
     });

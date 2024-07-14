@@ -51,11 +51,13 @@ pub fn init() {
     use x86_64::instructions::segmentation::CS;
     use x86_64::instructions::tables::load_tss;
 
+    print!("Initializing GDT... ");
     GDT.0.load();
-    print!("Loaded GDT. Trying to set selectors... ");
+    println!("[ok]");
+    print!("Trying to set selectors... ");
     unsafe {
         CS::set_reg(GDT.1.code_selector);
         load_tss(GDT.1.tss_selector);
     }
-    println!("[ok]")
+    println!("[ok]");
 }

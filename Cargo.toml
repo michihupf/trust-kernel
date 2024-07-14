@@ -1,5 +1,8 @@
 [package]
 name = "trust"
+description = "A small x86_64 kernel written in Rust to learn how kernels work."
+readme = "README.md"
+repository = "https://github.com/michihupf/trust-kernel"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,9 +10,8 @@ edition = "2021"
 
 [dependencies]
 bootloader = { version = "=0.9", features = ["map_physical_memory"] }
-volatile = "0.2.6"
 spin = "0.5.2"
-x86_64 = { version = "=0.14.7", default_features = false, features = ["instructions", "inline_asm", "abi_x86_interrupt"] }
+x86_64 = { version = "=0.14.7", default-features = false, features = ["instructions", "inline_asm", "abi_x86_interrupt"] }
 uart_16550 = "0.2.0"
 pic8259 = "0.10.1"
 pc-keyboard = "0.5.0"
@@ -21,16 +23,16 @@ features = ["spin_no_std"]
 
 [dependencies.crossbeam-queue]
 version = "0.2.1"
-default_features = false
+default-features = false
 features = ["alloc"]
 
 [dependencies.conquer-once]
 version = "0.2.0"
-default_features = false
+default-features = false
 
 [dependencies.futures-util]
 version = "0.3.4"
-default_features = false
+default-features = false
 features = ["alloc"]
 
 [package.metadata.bootimage]

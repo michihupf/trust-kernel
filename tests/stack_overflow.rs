@@ -50,7 +50,11 @@ fn init_test_idt() {
 #[allow(unconditional_recursion)]
 fn stack_overflow() {
     stack_overflow(); // infinitely recurse
-    volatile::Volatile::new(0).read(); // prevent tail recursion optimization
+    const VAL: i32 = 0;
+    // UNSAFE: safe as we know the value exists.
+    unsafe {
+        core::ptr::read_volatile(&VAL); // prevent tail recursion optimization
+    }
 }
 
 #[panic_handler]

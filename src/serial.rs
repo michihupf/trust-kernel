@@ -25,14 +25,46 @@ pub fn _print(args: ::core::fmt::Arguments) {
     });
 }
 
-/// This macro is used to print to the first serial port interface. Useful for testing purposes where the serial connection
+/// This macro is used to print to the first serial port interface.
+///
+/// Useful for testing purposes where the serial connection
 /// can be sent to stdout by the host.
+///
+/// # Examples
+/// ```
+/// serial_print!("123"); // prints 123 to the first serial port interface.
+/// serial_print!("{}", 123);
+///
+/// let a = 5;
+/// serial_print!("{a}"); // prints 5
+/// ```
+/// The above code will produce the following output
+/// ```
+/// 123123
+/// 5
+/// ```
 #[macro_export]
 macro_rules! serial_print {
     ($($arg:tt)*) => ($crate::serial::_print(format_args!($($arg)*)));
 }
 
-/// This macro is used to print to the first serial port interface. Newlines are added after. Usage is analogous to serial_print!().
+/// This macro is used to print to the first serial port interface.
+///
+/// A newline is appended at the end. Usage is analogous to [`serial_print!`][serial_print!].
+///
+/// # Examples
+/// ```
+/// serial_println!("123"); // prints 123 to the first serial port interface.
+/// serial_println!("{}", 123);
+///
+/// let a = 5;
+/// serial_println!("{a}"); // prints 5
+/// ```
+/// The above code will produce the following output
+/// ```
+/// 123123
+/// 5
+/// ```
 #[macro_export]
 macro_rules! serial_println {
     () => ($crate::serial_print!("\n"));

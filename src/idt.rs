@@ -11,13 +11,12 @@ lazy_static! {
         // Exceptions
         idt.divide_error.set_handler_fn(div_by_zero_handler);
         idt.debug.set_handler_fn(debug_handler);
-        // TODO: Non-maskable Interrupt
+        idt.non_maskable_interrupt.set_handler_fn(non_maskable_interrupt_handler);
         idt.breakpoint.set_handler_fn(breakpoint_handler);
         idt.overflow.set_handler_fn(overflow_handler);
         idt.bound_range_exceeded.set_handler_fn(bound_range_exceeded_handler);
-        // TODO: Bound Range Exceeded
-        // TODO: Invalid Opcode
-        // TODO: Device Not Available
+        idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
+        idt.device_not_available.set_handler_fn(device_not_available_handler);
         unsafe {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
@@ -49,7 +48,7 @@ lazy_static! {
     };
 }
 
-pub fn init_idt() {
+pub fn init() {
     print!("Initializing IDT... ");
     IDT.load();
     println!("[ok]");
@@ -78,6 +77,18 @@ fn test_debug_exception() {
     // invoke a debug exception by invoking a 0x1 software interrupt.
     unsafe {
         x86_64::software_interrupt!(0x1);
+    }
+}
+
+/// Exception handler for a non-maskable interrupt.
+extern "x86-interrupt" fn non_maskable_interrupt_handler(stack_frame: InterruptStackFrame) {
+    println!("CPU EXCEPTION: NMI\n{:#?}", stack_frame);
+}
+
+#[test_case]
+fn test_non_maskable_interrupt() {
+    unsafe {
+        x86_64::software_interrupt!(0x2);
     }
 }
 
@@ -119,6 +130,36 @@ fn test_bound_range_exceeded() {
     // invoke a 0x5 software interrupt
     unsafe {
         x86_64::software_interrupt!(0x5);
+    }
+}
+
+/// # Invalid Opcode
+/// Occurs when CPU tries to execute an invalid or undefined opcode. Also occurs in case of
+///
+/// - instruction tries to access a non-existent control register
+/// - UD is executed
+extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFrame) {
+    println!("CPU EXCEPTION: INVALID OPCODE\n{:#?}", stack_frame);
+}
+
+#[test_case]
+fn test_invalid_opcode() {
+    unsafe {
+        x86_64::software_interrupt!(0x6);
+    }
+}
+
+/// # Device Not Available
+/// Occurs when FPU instruction is attempted but no FPU is available. This is not likely on modern systems but
+/// the FPU can be disabled using flags in the CR0 register.
+extern "x86-interrupt" fn device_not_available_handler(stack_frame: InterruptStackFrame) {
+    println!("CPU EXCEPTION: DEVICE NOT AVAILABLE\n{:#?}", stack_frame);
+}
+
+#[test_case]
+fn test_device_not_available() {
+    unsafe {
+        x86_64::software_interrupt!(0x7);
     }
 }
 

@@ -16,7 +16,7 @@ entry_point!(main);
 
 fn main(boot_info: &'static BootInfo) -> ! {
     // initialize IDT, GDT and enable external interrupts
-    trust::init();
+    trust::init_basics();
 
     // initialize paging
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);

@@ -49,11 +49,15 @@ pub async fn print_keypresses() {
 
 pub struct ScancodeStream {
     /// prevents the contruction of the struct outside of the module.
-    /// ScancodeStream::new() has to be used!
+    /// [`ScancodeStream::new`] has to be used!
     _private: (),
 }
 
 impl ScancodeStream {
+    /// Creates a new [`ScancodeStream`].
+    ///
+    /// # Panics
+    /// This function should only be called once. If it is somehow called again it will panic.
     pub fn new() -> Self {
         SCANCODE_QUEUE
             .try_init_once(|| ArrayQueue::new(100))

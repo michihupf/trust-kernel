@@ -2,8 +2,6 @@ use core::{fmt, ptr};
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-use crate::serial_println;
-
 /// The Color enum is an abstraction for the 4-bit VGA text buffer colors.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,7 +25,7 @@ pub enum Color {
     White = 0xf,
 }
 
-/// The ColorCode struct serves as an abstraction for a 8-bit VGA text buffer color code
+/// The [`ColorCode`] struct serves as an abstraction for a 8-bit VGA text buffer color code
 /// formed from the foreground and background color. The blink bit (bit 7) is included in
 /// background color.
 ///
@@ -38,14 +36,15 @@ pub enum Color {
 pub struct ColorCode(u8);
 
 impl ColorCode {
+    #[must_use]
     pub fn new(font: Color, background: Color) -> ColorCode {
         // first 4 bits are foreground, last 4 are background
         ColorCode((background as u8) << 4 | (font as u8))
     }
 }
 
-/// A ScreenChar is a C-like struct representation of an ASCII character along with an
-/// associated ColorCode that defines the appearence of the character.
+/// A [`ScreenChar`] is a C-like struct representation of an ASCII character along with an
+/// associated [`ColorCode`] that defines the appearence of the character.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 struct ScreenChar {
@@ -65,7 +64,7 @@ impl Buffer {
     /// Writes character `c` to `row`,`col` in the VGA buffer.
     fn write(&mut self, row: usize, col: usize, c: ScreenChar) {
         unsafe {
-            // UNSAFE: all pointers in `chars` point to a valid char in the VGA buffer.
+            // UNSAFE: all pointers in `chars` point to a valid ScreenChar in the VGA buffer.
             ptr::write_volatile(&mut self.chars[row][col], c);
         }
     }
@@ -73,7 +72,7 @@ impl Buffer {
     /// Reads a character from the VGA buffer at position `row`,`col`.
     fn read(&self, row: usize, col: usize) -> ScreenChar {
         unsafe {
-            // UNSAFE: all pointers in `chars` point to a valid char in the VGA buffer.
+            // UNSAFE: all pointers in `chars` point to a valid ScreenChar in the VGA buffer.
             ptr::read_volatile(&self.chars[row][col])
         }
     }
@@ -194,7 +193,7 @@ lazy_static! {
 
 /// Prints a formatted string to the VGA text buffer using the global `WRITER`.
 ///
-/// This is a helper method and should not be used barebones. Use [`print!`][print!] or [`println!`][println!]
+/// This is a helper method and should not be used barebones. Use [`print!`] or [`println!`].
 /// instead.
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
@@ -223,12 +222,16 @@ pub fn _print(args: fmt::Arguments) {
 /// ```
 #[macro_export]
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
+    ($($arg:tt)*) => ({
+        $crate::vga_buffer::_print(format_args!($($arg)*));
+        #[cfg(feature = "q-printonhost")]
+        $crate::serial_print!("{}", format_args!($($arg)*));
+    });
 }
 
 /// This macro is used to print to the VGA text buffer.
 ///
-/// A newline appended at the end. The usage of this macro is analogous to [`print!`][print!].
+/// A newline appended at the end. The usage of this macro is analogous to [`print!`][crate::print!].
 ///
 /// # Examples
 /// ```
@@ -274,6 +277,7 @@ fn vga_text_buffer_many_print() {
 
 /// Test VGA text buffer functionality. Fails if content is not displayed correctly
 #[test_case]
+#[doc(hidden)]
 fn vga_text_buffer_functionality() {
     use crate::vga_buffer::WRITER;
     use core::fmt::Write;
@@ -282,7 +286,7 @@ fn vga_text_buffer_functionality() {
     let s = "Content";
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
-        write!(writer, "\n{}", s).expect("writeln failed");
+        write!(writer, "\n{s}").expect("writeln failed");
         for (i, c) in s.chars().enumerate() {
             let screen_char = writer.buffer.read(BUFFER_SIZE_Y - 1, i);
             assert_eq!(char::from(screen_char.ascii), c);
@@ -292,6 +296,7 @@ fn vga_text_buffer_functionality() {
 
 /// Test VGA buffer backspace functionality
 #[test_case]
+#[doc(hidden)]
 fn vga_text_buffer_backspace() {
     use crate::vga_buffer::WRITER;
     use core::fmt::Write;
@@ -300,7 +305,7 @@ fn vga_text_buffer_backspace() {
     let s = "Content";
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
-        write!(writer, "\n{}", s).expect("writeln failed");
+        write!(writer, "\n{s}").expect("writeln failed");
         for _ in 0..s.len() {
             writer.write(0x08); // remove every character <BS> = 0x08
         }

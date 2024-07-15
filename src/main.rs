@@ -4,14 +4,15 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(trust::test_runner)]
 #![reexport_test_harness_main = "test_main"] // test main function should be renamed from main() because of no_main
-#![allow(clippy::empty_loop)]
 #![warn(
     clippy::all,
     clippy::cargo,
     clippy::complexity,
     clippy::correctness,
     clippy::pedantic,
-    clippy::perf
+    clippy::perf,
+    clippy::style,
+    clippy::suspicious
 )]
 #![allow(clippy::cargo_common_metadata)]
 
@@ -20,10 +21,10 @@ extern crate alloc;
 use bootloader::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use trust::{
-    heap, memory, println, serial_println,
+    heap, memory, println,
     task::{executor::Executor, keyboard, Task},
 };
-use x86_64::{structures::paging::Page, VirtAddr};
+use x86_64::VirtAddr;
 
 entry_point!(kernel_main);
 
@@ -35,24 +36,21 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     println!("Booting tRust...");
 
     // initialize GDT, IDT and enable external interrupts
-    trust::init();
+    trust::init_basics();
 
     // initialize paging
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator =
-        unsafe { memory::BootInfoFrameAllocator::init(&boot_info.memory_map) };
+    let mut mapper = unsafe {
+        // SAFETY: the memory::init will only be called here and memory is mapped beggining at physical_memory_offset
+        memory::init(phys_mem_offset)
+    };
+    let mut frame_allocator = unsafe {
+        // SAFETY: The memory map is assumed to be valid as it comes from the bootloader.
+        memory::BootInfoFrameAllocator::init(&boot_info.memory_map)
+    };
 
     // initialize heap
     heap::init(&mut mapper, &mut frame_allocator).expect("heap initialization failed.");
-
-    // map an unused page
-    let page = Page::containing_address(VirtAddr::new(0xdead_beef));
-    memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
-
-    // write "New!" to the screen though memory mapping
-    let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
-    unsafe { page_ptr.offset(200).write_volatile(0xf021_f077_f065_f04e) };
 
     // run tests when in test config
     #[cfg(test)]

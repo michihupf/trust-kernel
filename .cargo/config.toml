@@ -1,5 +1,5 @@
 [build]
-target = "x86_64-rustos.json"
+target = "x86_64-trust.json"
 
 [unstable]
 build-std = ["core", "compiler_builtins", "alloc"]

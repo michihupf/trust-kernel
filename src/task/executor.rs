@@ -12,6 +12,7 @@ pub struct Executor {
 }
 
 impl Executor {
+    #[must_use]
     pub fn new() -> Self {
         Executor {
             tasks: BTreeMap::new(),
@@ -20,11 +21,16 @@ impl Executor {
         }
     }
 
+    /// Spawns a new task.
+    ///
+    /// # Panics
+    /// When `task.id` is already used by a different [`Task`] this method panics.
     pub fn spawn(&mut self, task: Task) {
         let task_id = task.id;
-        if self.tasks.insert(task.id, task).is_some() {
-            panic!("task with same id was already spawned");
-        }
+        assert!(
+            self.tasks.insert(task.id, task).is_none(),
+            "task with same id was already spawned"
+        );
         self.task_queue
             .push(task_id)
             .expect("the task queue is full");
@@ -32,9 +38,8 @@ impl Executor {
 
     fn run_ready(&mut self) {
         while let Ok(task_id) = self.task_queue.pop() {
-            let task = match self.tasks.get_mut(&task_id) {
-                Some(task) => task,
-                None => continue, // task is no longer existent
+            let Some(task) = self.tasks.get_mut(&task_id) else {
+                continue; // task is no longer running
             };
             let waker = self
                 .waker_cache

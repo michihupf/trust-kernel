@@ -4,7 +4,7 @@ use core::{
     ptr,
 };
 
-pub struct BumpAllocator {
+pub struct Allocator {
     // start of the heap
     heap_start: usize,
     // end of the heap
@@ -15,10 +15,11 @@ pub struct BumpAllocator {
     allocations: usize,
 }
 
-impl BumpAllocator {
-    /// Creates a new empty BumpAllocator.
+impl Allocator {
+    /// Creates a new empty Allocator.
+    #[must_use]
     pub const fn empty() -> Self {
-        BumpAllocator {
+        Allocator {
             heap_start: 0,
             heap_end: 0,
             next: 0,
@@ -26,7 +27,7 @@ impl BumpAllocator {
         }
     }
 
-    /// Initializes the BumpAllocator with the given heap bounds.
+    /// Initializes the Allocator with the given heap bounds.
     ///
     /// # Safety
     /// This method is unsafe as the caller must ensure that the given
@@ -39,14 +40,14 @@ impl BumpAllocator {
     }
 }
 
-unsafe impl GlobalAlloc for Locked<BumpAllocator> {
+unsafe impl GlobalAlloc for Locked<Allocator> {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         let mut allocator = self.lock();
 
         let alloc_start = align_up(allocator.next, layout.align());
-        let alloc_end = match alloc_start.checked_add(layout.size()) {
-            Some(end) => end,
-            None => return ptr::null_mut(), // allocation size caused integer overflow
+        let Some(alloc_end) = alloc_start.checked_add(layout.size()) else {
+            // allocation caused integer overflow
+            return ptr::null_mut();
         };
 
         if alloc_end > allocator.heap_end {

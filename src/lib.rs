@@ -12,6 +12,17 @@
 #![feature(asm_const)]
 // needed for implementing a linked list allocator
 #![feature(const_mut_refs)]
+#![warn(
+    clippy::all,
+    clippy::cargo,
+    clippy::complexity,
+    clippy::correctness,
+    clippy::pedantic,
+    clippy::perf,
+    clippy::style,
+    clippy::suspicious
+)]
+#![allow(clippy::cargo_common_metadata)]
 
 pub mod gdt;
 pub mod heap;
@@ -35,7 +46,7 @@ entry_point!(test_kernel_main);
 fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
     // do initialization before testing
 
-    init();
+    init_basics();
     test_main();
 
     // halt the CPU
@@ -43,9 +54,9 @@ fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
 }
 
 /// Initializes important systems like IDT, GDT and PIC8259.
-pub fn init() {
+pub fn init_basics() {
     gdt::init();
-    idt::init_idt();
+    idt::init();
 
     print!("Initializing 8259 PIC... ");
     unsafe { idt::PICS.lock().initialize() };

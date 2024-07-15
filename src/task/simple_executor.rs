@@ -8,6 +8,7 @@ pub struct SimpleExecutor {
 }
 
 impl SimpleExecutor {
+    #[must_use]
     pub fn new() -> SimpleExecutor {
         SimpleExecutor {
             task_queue: VecDeque::new(),
@@ -36,7 +37,7 @@ impl Default for SimpleExecutor {
     }
 }
 
-/// Creates a dummy RawWaker that is effectively doing nothing.
+/// Creates a dummy [`RawWaker`] that is effectively doing nothing.
 fn raw_dummy_waker() -> RawWaker {
     fn no_op(_: *const ()) {}
     fn clone(_: *const ()) -> RawWaker {

@@ -8,9 +8,13 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+verbose-vm = ["q-printonhost"]
+q-printonhost = []
+
 [dependencies]
 bootloader = { version = "=0.9", features = ["map_physical_memory"] }
-spin = "0.5.2"
+spin = "0.9.8"
 x86_64 = { version = "=0.14.7", default-features = false, features = ["instructions", "inline_asm", "abi_x86_interrupt"] }
 uart_16550 = "0.2.0"
 pic8259 = "0.10.1"
@@ -36,6 +40,7 @@ default-features = false
 features = ["alloc"]
 
 [package.metadata.bootimage]
+run-args = ["-serial", "stdio"]
 test-args = ["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio", "-display", "none"]
 test-success-exit-code = 33      # (0x10 << 1) | 1
 
@@ -46,3 +51,4 @@ harness = false
 [[test]]
 name = "stack_overflow"
 harness = false
+

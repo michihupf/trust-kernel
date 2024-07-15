@@ -1,7 +1,7 @@
 pub mod bump;
 pub mod list;
 
-use self::list::ListAllocator;
+use self::list::Allocator;
 use core::{alloc::GlobalAlloc, ptr::null_mut};
 use x86_64::{
     structures::paging::{
@@ -10,7 +10,7 @@ use x86_64::{
     VirtAddr,
 };
 
-/// A wrapper around spin::Mutex to permit trait implementation.
+/// A wrapper around [`spin::Mutex`] to permit trait implementation.
 pub struct Locked<T> {
     inner: spin::Mutex<T>,
 }
@@ -48,12 +48,15 @@ unsafe impl GlobalAlloc for DummyAllocator {
 }
 
 #[global_allocator]
-static ALLOCATOR: Locked<ListAllocator> = Locked::new(ListAllocator::empty());
+static ALLOCATOR: Locked<Allocator> = Locked::new(Allocator::empty());
 
 pub const HEAP_START: usize = 0x_4444_4444_0000;
 pub const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
 
 /// Maps the heap pages to physical memory.
+///
+/// # Errors
+/// [`MapToError<Size4KiB>`] when allocating frames or memory mapping fails.
 pub fn init(
     mapper: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,

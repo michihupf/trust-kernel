@@ -44,13 +44,14 @@ pub fn _print(args: ::core::fmt::Arguments) {
 /// 5
 /// ```
 #[macro_export]
+#[allow(clippy::module_name_repetitions)]
 macro_rules! serial_print {
     ($($arg:tt)*) => ($crate::serial::_print(format_args!($($arg)*)));
 }
 
 /// This macro is used to print to the first serial port interface.
 ///
-/// A newline is appended at the end. Usage is analogous to [`serial_print!`][serial_print!].
+/// A newline is appended at the end. Usage is analogous to [`serial_print!`].
 ///
 /// # Examples
 /// ```
@@ -66,6 +67,7 @@ macro_rules! serial_print {
 /// 5
 /// ```
 #[macro_export]
+#[allow(clippy::module_name_repetitions)]
 macro_rules! serial_println {
     () => ($crate::serial_print!("\n"));
     ($fmt:expr) => ($crate::serial_print!(concat!($fmt, "\n")));

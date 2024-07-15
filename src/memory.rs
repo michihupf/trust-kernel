@@ -6,13 +6,14 @@ use x86_64::{
     PhysAddr, VirtAddr,
 };
 
-/// Initialize a new OffsetPageTable.
+/// Initialize a new [`OffsetPageTable`].
 ///
 /// # Safety
 /// This function is unsafe because the caller must guarantee that the
 /// complete physical memory is mapped to virtual memory at the passed
 /// `physical_memory_offset`. Also, this function must be only called once
 /// to avoid aliasing `&mut` references (which is undefined behavior).
+#[must_use]
 pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static> {
     let l4_page_table = active_l4_page_table(physical_memory_offset);
     OffsetPageTable::new(l4_page_table, physical_memory_offset)
@@ -37,6 +38,9 @@ unsafe fn active_l4_page_table(physical_memory_offset: VirtAddr) -> &'static mut
 }
 
 /// Creates an example mapping for the given page to frame `0xb8000` (the VGA text buffer).
+///
+/// # Panics
+/// Panics when memory mapping fails.
 pub fn create_example_mapping(
     page: Page,
     mapper: &mut OffsetPageTable,
@@ -54,7 +58,7 @@ pub fn create_example_mapping(
     map_to_result.expect("map_to failed").flush();
 }
 
-/// A FrameAllocator taht always returns `None`
+/// A [`FrameAllocator`] that always returns `None`.
 pub struct EmptyFrameAllocator;
 
 unsafe impl FrameAllocator<Size4KiB> for EmptyFrameAllocator {
@@ -63,7 +67,7 @@ unsafe impl FrameAllocator<Size4KiB> for EmptyFrameAllocator {
     }
 }
 
-/// A FrameAllocator that returns usable frames from the bootloader's memory map.
+/// A [`FrameAllocator`] that returns usable frames from the bootloader's memory map.
 pub struct BootInfoFrameAllocator {
     memory_map: &'static MemoryMap,
     // this field keeps track of the number of the next frame that the allocator should return
@@ -71,12 +75,13 @@ pub struct BootInfoFrameAllocator {
 }
 
 impl BootInfoFrameAllocator {
-    /// Create a FrameAllocator from the passed memory map.
+    /// Create a [`FrameAllocator`] from the passed memory map.
     ///
     /// # Safety
     /// This function is unsafe because the caller must guarantee that the passed memory
     /// map is valid. The main requirement is that all frames that are marked as `USABLE`
     /// in it are really unused.
+    #[must_use]
     pub unsafe fn init(memory_map: &'static MemoryMap) -> Self {
         BootInfoFrameAllocator {
             memory_map,

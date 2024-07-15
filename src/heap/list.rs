@@ -18,7 +18,7 @@ impl ListNode {
 
     /// Returns the start adress of the associated memory region.
     fn start_addr(&self) -> usize {
-        self as *const Self as usize
+        ptr::from_ref::<Self>(self) as usize
     }
 
     /// Returns the end address of the associated memory region
@@ -27,19 +27,20 @@ impl ListNode {
     }
 }
 
-pub struct ListAllocator {
+pub struct Allocator {
     head: ListNode,
 }
 
-impl ListAllocator {
-    /// Creates an empty ListAllocator
+impl Allocator {
+    /// Creates an empty Allocator
+    #[must_use]
     pub const fn empty() -> Self {
-        ListAllocator {
+        Allocator {
             head: ListNode::new(0),
         }
     }
 
-    /// Initializes the ListAllocator with the given heap bounds.
+    /// Initializes the Allocator with the given heap bounds.
     ///
     /// # Safety
     /// This method is unsafe as the caller must ensure that the given
@@ -51,7 +52,7 @@ impl ListAllocator {
 
     /// Adds the given memory region to the front of the list
     unsafe fn add_free_mem_region(&mut self, addr: usize, size: usize) {
-        // ensure thar freed region is large enough to hold the ListNode
+        // ensure that freed region is large enough to hold the ListNode
         assert_eq!(align_up(addr, mem::align_of::<ListNode>()), addr);
         assert!(size >= mem::size_of::<ListNode>());
 
@@ -65,7 +66,7 @@ impl ListAllocator {
 
     /// Finds a free memory region with the given `size` and `align`ment and removes it from the list.
     ///
-    /// Returns a tuple of ListNode and the start adress of the allocation.
+    /// Returns a tuple of [`ListNode`] and the start adress of the allocation.
     fn find_free_mem_region(
         &mut self,
         size: usize,
@@ -80,10 +81,9 @@ impl ListAllocator {
                 let ret = Some((cur.next.take().unwrap(), alloc_start));
                 cur.next = next;
                 return ret;
-            } else {
-                // region is not okay to be allocated. traverse further
-                cur = cur.next.as_mut().unwrap();
             }
+            // region is not okay to be allocated. traverse further
+            cur = cur.next.as_mut().unwrap();
         }
 
         // did not find a memory region that was big enough
@@ -113,7 +113,7 @@ impl ListAllocator {
         Some(alloc_start)
     }
 
-    /// Adjusts the `layout` so that the allocated memory region is capable of storing a ListNode.
+    /// Adjusts the `layout` so that the allocated memory region is capable of storing a [`ListNode`].
     ///
     /// Returns the adjusted size and alignment as a (size, align) tuple.
     fn size_align(layout: Layout) -> (usize, usize) {
@@ -126,16 +126,16 @@ impl ListAllocator {
     }
 }
 
-unsafe impl GlobalAlloc for Locked<ListAllocator> {
+unsafe impl GlobalAlloc for Locked<Allocator> {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         // re-align so that a ListNode may be stored
-        let (size, align) = ListAllocator::size_align(layout);
+        let (size, align) = Allocator::size_align(layout);
         let mut allocator = self.lock();
 
         if let Some((region, alloc_start)) = allocator.find_free_mem_region(size, align) {
-            let alloc_end = match alloc_start.checked_add(size) {
-                Some(end) => end,
-                None => return ptr::null_mut(), // overflow means out of memory
+            let Some(alloc_end) = alloc_start.checked_add(size) else {
+                // integer overflow indicates that we are out of memory
+                return ptr::null_mut();
             };
             let excess_size = region.end_addr() - alloc_end;
             if excess_size > 0 {
@@ -149,7 +149,7 @@ unsafe impl GlobalAlloc for Locked<ListAllocator> {
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         // re-align so that a ListNode may be stored
-        let (size, _align) = ListAllocator::size_align(layout);
+        let (size, _align) = Allocator::size_align(layout);
         // deallocate
         self.lock().add_free_mem_region(ptr as usize, size);
     }

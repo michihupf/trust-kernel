@@ -32,7 +32,7 @@ pub struct Allocator {
 }
 
 impl Allocator {
-    /// Creates an empty Allocator
+    /// Creates an empty allocator.
     #[must_use]
     pub const fn empty() -> Self {
         Allocator {
@@ -40,12 +40,11 @@ impl Allocator {
         }
     }
 
-    /// Initializes the Allocator with the given heap bounds.
+    /// Initializes the allocator with a given memory region.
     ///
     /// # Safety
-    /// This method is unsafe as the caller must ensure that the given
-    /// memory range is usable. Also, this method must be called no more
-    /// than once.
+    /// This function is unsafe as the caller needs to ensure that the provided
+    /// memory region is free and that this function is only called once.
     pub unsafe fn init(&mut self, heap_start: usize, heap_size: usize) {
         self.add_free_mem_region(heap_start, heap_size);
     }
@@ -126,6 +125,7 @@ impl Allocator {
     }
 }
 
+// SAFETY: GlobalAlloc is unsafe, as the caller needs to ensure memory safety by providing a sane layout.
 unsafe impl GlobalAlloc for Locked<Allocator> {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         // re-align so that a ListNode may be stored

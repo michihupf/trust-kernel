@@ -5,6 +5,7 @@ use uart_16550::SerialPort;
 lazy_static! {
     /// Static reference to first serial port
     pub static ref SERIAL1: Mutex<SerialPort> = {
+        // Safety: serial interface 1 is located at 0x3f8.
         let mut serial = unsafe { SerialPort::new(0x3f8) };
         serial.init();
         Mutex::new(serial)

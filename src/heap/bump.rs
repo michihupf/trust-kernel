@@ -16,7 +16,7 @@ pub struct Allocator {
 }
 
 impl Allocator {
-    /// Creates a new empty Allocator.
+    /// Creates a new empty allocator.
     #[must_use]
     pub const fn empty() -> Self {
         Allocator {
@@ -27,7 +27,7 @@ impl Allocator {
         }
     }
 
-    /// Initializes the Allocator with the given heap bounds.
+    /// Initializes the allocator with the given heap bounds.
     ///
     /// # Safety
     /// This method is unsafe as the caller must ensure that the given
@@ -40,6 +40,7 @@ impl Allocator {
     }
 }
 
+// SAFETY: GlobalAlloc is unsafe, as the caller needs to ensure memory safety by providing a sane layout.
 unsafe impl GlobalAlloc for Locked<Allocator> {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         let mut allocator = self.lock();

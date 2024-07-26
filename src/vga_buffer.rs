@@ -63,6 +63,7 @@ struct Buffer {
 impl Buffer {
     /// Writes character `c` to `row`,`col` in the VGA buffer.
     fn write(&mut self, row: usize, col: usize, c: ScreenChar) {
+        // Safety: volatile write is performed on valid memory location.
         unsafe {
             // UNSAFE: all pointers in `chars` point to a valid ScreenChar in the VGA buffer.
             ptr::write_volatile(&mut self.chars[row][col], c);
@@ -71,6 +72,7 @@ impl Buffer {
 
     /// Reads a character from the VGA buffer at position `row`,`col`.
     fn read(&self, row: usize, col: usize) -> ScreenChar {
+        // Safety: volatile read is performed on valid memory location.
         unsafe {
             // UNSAFE: all pointers in `chars` point to a valid ScreenChar in the VGA buffer.
             ptr::read_volatile(&self.chars[row][col])
@@ -187,6 +189,7 @@ lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_pos: 0,
         color_code: ColorCode::new(Color::White, Color::Black),
+        // Safety: VGA buffer is as 0xb8000.
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
     });
 }

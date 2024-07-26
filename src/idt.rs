@@ -1,9 +1,19 @@
-use crate::{gdt, hlt_forever, print, println};
+use crate::{hlt_forever, memory::MemoryController, print, println, status_print};
 #[allow(unused_imports)]
 use core::arch::asm;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+use spin::Once;
+use x86_64::{
+    instructions::tables::load_tss,
+    registers::segmentation::{Segment, CS},
+    structures::{
+        gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector},
+        idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode},
+        tss::TaskStateSegment,
+    },
+    VirtAddr,
+};
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -17,10 +27,11 @@ lazy_static! {
         idt.bound_range_exceeded.set_handler_fn(bound_range_exceeded_handler);
         idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
         idt.device_not_available.set_handler_fn(device_not_available_handler);
+        // SAFETY: Setting stack index is safe as we create the stack in init!
         unsafe {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
-                .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
+                .set_stack_index(DOUBLE_FAULT_IST_INDEX);
         }
         // TODO: Invalid TSS
         // TODO: Segment Not Present
@@ -48,10 +59,57 @@ lazy_static! {
     };
 }
 
-pub fn init() {
-    print!("Initializing IDT... ");
+const DOUBLE_FAULT_IST_INDEX: u16 = 0;
+
+static TSS: Once<TaskStateSegment> = Once::new();
+static GDT: Once<GlobalDescriptorTable> = Once::new();
+
+pub fn init(memory_controller: &mut MemoryController) {
+    println!("initializing IDT... ");
+
+    status_print! {
+        "  allocating double fault stack"
+        let double_fault_stack = memory_controller
+            .alloc_stack(1)
+            .expect("double fault stack allocation failed");
+    };
+
+    status_print! {
+        "  setting up TSS"
+        let tss = TSS.call_once(|| {
+            let mut tss = TaskStateSegment::new();
+            tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] =
+                VirtAddr::new(double_fault_stack.top() as u64);
+            tss
+        });
+    };
+
+    status_print! {
+        "  setting up new GDT"
+        let mut code_selector = SegmentSelector(0);
+        let mut tss_selector = SegmentSelector(0);
+        let gdt = GDT.call_once(|| {
+            let mut gdt = GlobalDescriptorTable::new();
+            code_selector = gdt.add_entry(Descriptor::kernel_code_segment());
+            tss_selector = gdt.add_entry(Descriptor::tss_segment(tss));
+            gdt
+        });
+        gdt.load();
+    };
+
+    status_print! {
+        "  attempting to set CS and load TSS"
+        // SAFETY: The given segment selectors point to the correct location.
+        unsafe {
+            // reload code segment register
+            CS::set_reg(code_selector);
+            // load TSS
+            load_tss(tss_selector);
+        }
+    };
+
     IDT.load();
-    println!("[ok]");
+    println!("IDT [ok]");
 }
 
 /// Exception handler for a division by zero exception.
@@ -62,6 +120,7 @@ extern "x86-interrupt" fn div_by_zero_handler(stack_frame: InterruptStackFrame) 
 #[test_case]
 fn test_div_by_zero_exception() {
     // invoke a division by zero exception by invoking a 0x0 software interrupt.
+    // Safety: triggering software interrupt in test is generally fine.
     unsafe {
         x86_64::software_interrupt!(0x0);
     }
@@ -75,6 +134,7 @@ extern "x86-interrupt" fn debug_handler(stack_frame: InterruptStackFrame) {
 #[test_case]
 fn test_debug_exception() {
     // invoke a debug exception by invoking a 0x1 software interrupt.
+    // Safety: triggering software interrupt in test is generally fine.
     unsafe {
         x86_64::software_interrupt!(0x1);
     }
@@ -87,6 +147,7 @@ extern "x86-interrupt" fn non_maskable_interrupt_handler(stack_frame: InterruptS
 
 #[test_case]
 fn test_non_maskable_interrupt() {
+    // Safety: triggering software interrupt in test is generally fine.
     unsafe {
         x86_64::software_interrupt!(0x2);
     }
@@ -111,6 +172,7 @@ extern "x86-interrupt" fn overflow_handler(stack_frame: InterruptStackFrame) {
 #[test_case]
 fn test_overflow_exception() {
     // invoke an overflow exception by invoking a 0x4 software interrupt.
+    // Safety: triggering software interrupt in test is generally fine.
     unsafe {
         x86_64::software_interrupt!(0x4);
     }
@@ -128,6 +190,7 @@ extern "x86-interrupt" fn bound_range_exceeded_handler(stack_frame: InterruptSta
 #[test_case]
 fn test_bound_range_exceeded() {
     // invoke a 0x5 software interrupt
+    // Safety: triggering software interrupt in test is generally fine.
     unsafe {
         x86_64::software_interrupt!(0x5);
     }
@@ -144,6 +207,7 @@ extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFram
 
 #[test_case]
 fn test_invalid_opcode() {
+    // Safety: triggering software interrupt in test is generally fine.
     unsafe {
         x86_64::software_interrupt!(0x6);
     }
@@ -158,6 +222,7 @@ extern "x86-interrupt" fn device_not_available_handler(stack_frame: InterruptSta
 
 #[test_case]
 fn test_device_not_available() {
+    // Safety: triggering software interrupt in test is generally fine.
     unsafe {
         x86_64::software_interrupt!(0x7);
     }
@@ -232,6 +297,7 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
     // print!("\r{}", core::str::from_utf8(&s).unwrap());
 
     // send EOI after successful handling
+    // Safety: interrupt notifications are unsafe in general. This case should be fine.
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
@@ -244,10 +310,12 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 
     // read the scancode from the PS/2 port (0x60)
     let mut port = Port::new(0x60);
+    // Safety: serial port should not have memory violating side effects.
     let scancode: u8 = unsafe { port.read() };
     crate::task::keyboard::add_scancode(scancode);
 
     // send EOI after successful handling
+    // Safety: interrupt notifications are unsafe in general. This case should be fine.
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());

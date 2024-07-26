@@ -50,5 +50,6 @@ fn raw_dummy_waker() -> RawWaker {
 }
 
 fn dummy_waker() -> Waker {
+    // Safety: contract is upheld.
     unsafe { Waker::from_raw(raw_dummy_waker()) }
 }

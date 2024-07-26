@@ -1,0 +1,26 @@
+// #![no_std]
+// #![no_main]
+// // set up testing
+// #![feature(custom_test_frameworks)]
+// #![test_runner(trust::test_runner)]
+// #![reexport_test_harness_main = "test_main"] // test main function should be renamed from main() because of no_main
+// #![warn(
+//     clippy::all,
+//     clippy::cargo,
+//     clippy::complexity,
+//     clippy::correctness,
+//     clippy::pedantic,
+//     clippy::perf,
+//     clippy::style,
+//     clippy::suspicious
+// )]
+// #![allow(clippy::cargo_common_metadata)]
+
+// extern crate alloc;
+
+// use core::panic::PanicInfo;
+// use trust::{
+//     heap, memory, println,
+//     task::{executor::Executor, keyboard, Task},
+// };
+// use x86_64::VirtAddr;

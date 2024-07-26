@@ -37,7 +37,7 @@ impl Executor {
     }
 
     fn run_ready(&mut self) {
-        while let Ok(task_id) = self.task_queue.pop() {
+        while let Some(task_id) = self.task_queue.pop() {
             let Some(task) = self.tasks.get_mut(&task_id) else {
                 continue; // task is no longer running
             };

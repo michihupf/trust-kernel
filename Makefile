@@ -44,13 +44,8 @@ $(iso): $(kernel) $(grub_cfg)
 	@grub-mkrescue -o $(iso) -d /usr/lib/grub/i386-pc build/iso 2> /dev/null
 	@rm -r build/iso
 
-$(kernel): kernel $(trust) $(assembly_object_files) $(linker_script)
-	@ld -n --gc-sections -T $(linker_script) -o $(kernel) $(assembly_object_files) $(trust)
+$(kernel): kernel $(trust) $(linker_script)
+	@ld -n --gc-sections -T $(linker_script) -o $(kernel) $(trust)
 
 kernel:
 	@RUST_TARGET_PATH=$(shell pwd) cargo build --target $(target) $(flags)
-
-# compile assembly files
-build/arch/$(arch)/%.o: src/arch/$(arch)/%.s
-	@mkdir -p $(shell dirname $@)
-	@as $< -o $@

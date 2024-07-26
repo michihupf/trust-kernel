@@ -1,10 +1,10 @@
 .code32
-.global start
+.global main
 .extern _long_mode_start
 
 .section .text
 
-start:
+main:
 	mov esp, stack_top
 	mov edi, ebx # move multiboot info pointer to edi
 

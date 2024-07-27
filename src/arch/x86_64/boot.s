@@ -22,8 +22,6 @@ start:
 	lgdt [gdt64pointer]
 	jmp 0x08, offset _long_mode_start    # long jump to 64-bit long mode :D
 
-# ATTENTION! Kernel return is undefined behaviour and therefore this jump is the last in 32 bit land!
-
 check_multiboot:
 	cmp eax, 0x36d76289
 	jne .no_multiboot

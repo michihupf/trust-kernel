@@ -88,6 +88,27 @@ macro_rules! bitmask {
     }};
 }
 
+/// Includes needed entry assembly.
+///
+/// Helper macro to include needed entry assembly. Make sure to only include it once!
+#[macro_export]
+macro_rules! entry_asm {
+    () => {
+        core::arch::global_asm!(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/arch/x86_64/multiboot_header.s"
+        )));
+        core::arch::global_asm!(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/arch/x86_64/boot.s"
+        )));
+        core::arch::global_asm!(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/arch/x86_64/long_mode_init.s"
+        )));
+    };
+}
+
 #[test_case]
 fn bitmask_macro() {
     const _: () = assert!(bitmask!(23..16) == 0x00ff_0000);
@@ -96,11 +117,8 @@ fn bitmask_macro() {
     const _: () = assert!(bitmask!(18) == 1 << 18);
 }
 
-/// This is the kernel entry point. It is called by the bootloader.
-#[no_mangle]
-pub extern "C" fn kernel_main(mbi_ptr: usize) -> ! {
-    // kernel entry point
-
+/// Kernel main!
+pub fn kernel_main(mbi_ptr: usize) -> ! {
     // print "Booting" to the screen
     println!("Booting tRust...");
 
@@ -122,51 +140,57 @@ pub extern "C" fn kernel_main(mbi_ptr: usize) -> ! {
     status_print!("enabling external interrupts" => x86_64::instructions::interrupts::enable());
 
     // // run tests when in test config
-    // #[cfg(test)]
-    // test_main();
+    #[cfg(test)]
+    test_main();
 
-    // // print CPU Vendor
-    // // SAFETY: cpuid is available and CPUID.0h is then always possible
-    // let cpuid = unsafe { core::arch::x86_64::__cpuid(0) };
-    // let ebx = cpuid.ebx;
-    // let edx = cpuid.edx;
-    // let ecx = cpuid.ecx;
+    // print CPU Vendor
+    // SAFETY: cpuid is available and CPUID.0h is then always possible
+    let cpuid = unsafe { core::arch::x86_64::__cpuid(0) };
+    let ebx = cpuid.ebx;
+    let edx = cpuid.edx;
+    let ecx = cpuid.ecx;
 
-    // let cpu_vendor = [ebx.to_ne_bytes(), edx.to_ne_bytes(), ecx.to_ne_bytes()].concat();
-    // let cpu_vendor = String::from_utf8(cpu_vendor).unwrap();
-    // println!("CPU Vendor: {cpu_vendor}");
+    let cpu_vendor = [ebx.to_ne_bytes(), edx.to_ne_bytes(), ecx.to_ne_bytes()].concat();
+    let cpu_vendor = String::from_utf8(cpu_vendor).unwrap();
+    println!("CPU Vendor: {cpu_vendor}");
 
-    // // get logical core count per cpu
-    // // SAFETY: cpuid is available and CPUID.1h is always available
-    // let cpuid = unsafe { core::arch::x86_64::__cpuid(1) };
-    // let ebx = cpuid.ebx;
+    // get logical core count per cpu
+    // SAFETY: cpuid is available and CPUID.1h is always available
+    let cpuid = unsafe { core::arch::x86_64::__cpuid(1) };
+    let ebx = cpuid.ebx;
 
-    // let logic_cpus = ebx & bitmask!(23..16);
-    // println!("cpus (logical): {logic_cpus}");
+    let logic_cpus = ebx & bitmask!(23..16);
+    println!("cpus (logical): {logic_cpus}");
 
-    // // get number of cpu cores when vendor is AuthenticAMD
-    // // SAFETY: cpuid is available and CPUID.8000_0008h is always available
-    // let cpuid = unsafe { core::arch::x86_64::__cpuid(0x8000_0008) };
-    // let ecx = cpuid.ecx;
+    // get number of cpu cores when vendor is AuthenticAMD
+    // SAFETY: cpuid is available and CPUID.8000_0008h is always available
+    let cpuid = unsafe { core::arch::x86_64::__cpuid(0x8000_0008) };
+    let ecx = cpuid.ecx;
 
-    // let cores = ecx & bitmask!(7..0);
+    let cores = ecx & bitmask!(7..0);
 
-    // println!("cores: {cores}, [ecx]: {ecx:#b}");
+    println!("cores: {cores}, [ecx]: {ecx:#b}");
 
-    // // test asynchronous tasks
-    // let mut executor = Executor::new();
-    // executor.spawn(Task::new(keyboard::print_keypresses()));
-    // executor.run();
+    // test asynchronous tasks
+    let mut executor = Executor::new();
+    executor.spawn(Task::new(keyboard::print_keypresses()));
+    executor.run();
 
-    hlt_forever();
+    // hlt_forever();
 }
 
 #[lang = "eh_personality"]
 #[no_mangle]
 pub extern "C" fn eh_personality() {}
 
+#[cfg(test)]
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    test_panic_handler(info);
+}
+
 /// Enables the NO_EXECUTE bit in the Extended Feature Enable Register (EFER).
-fn enable_nxe_bit() {
+pub fn enable_nxe_bit() {
     // SAFETY: EFER accesses are only allowed in kernel mode. We are in kernel mode.
     unsafe {
         let mut msr = Efer::MSR;
@@ -176,23 +200,9 @@ fn enable_nxe_bit() {
 }
 
 /// Enables write protection on page entries that do no have the [`WRITABLE`][EntryFlags] flag set.
-fn enable_wp_bit() {
+pub fn enable_wp_bit() {
     // SAFETY: CR0 accesses are only allowed in kernel mode. We are in kernel mode.
     unsafe { Cr0::write(Cr0::read() | Cr0Flags::WRITE_PROTECT) }
-}
-
-/// This function is called on panic and prints information to VGA text buffer.
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
-    hlt_forever();
-}
-
-#[cfg(test)]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    test_panic_handler(info);
 }
 
 /// Initializes important systems like IDT, GDT and PIC8259.

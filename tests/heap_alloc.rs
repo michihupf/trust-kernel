@@ -8,10 +8,13 @@ use core::panic::PanicInfo;
 
 use alloc::boxed::Box;
 use multiboot2::{BootInformation, BootInformationHeader};
-use trust::{hlt_forever, idt, memory};
+use trust::{hlt_forever, memory};
 
 extern crate alloc;
 
+trust::entry_asm!();
+
+#[no_mangle]
 pub extern "C" fn kernel_main(mbi_ptr: usize) -> ! {
     // Safety: mbi is placed here by mutliboot2 bootloader
     let mbi = unsafe { BootInformation::load(mbi_ptr as *const BootInformationHeader).unwrap() };
@@ -23,10 +26,10 @@ pub extern "C" fn kernel_main(mbi_ptr: usize) -> ! {
     hlt_forever();
 }
 
-// #[panic_handler]
-// fn panic(info: &PanicInfo) -> ! {
-//     trust::test_panic_handler(info);
-// }
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    trust::test_panic_handler(info);
+}
 
 #[test_case]
 fn box_alloc() {

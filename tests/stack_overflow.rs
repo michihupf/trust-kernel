@@ -9,7 +9,7 @@ use spin::Once;
 use trust::{
     exit_qemu,
     memory::{self, MemoryController},
-    serial_print, serial_println,
+    serial_print, serial_println, test_panic_handler,
 };
 use x86_64::{
     instructions::tables::load_tss,
@@ -26,6 +26,8 @@ const TEST_DOUBLE_FAULT_IST_INDEX: u16 = 0;
 
 static TEST_TSS: Once<TaskStateSegment> = Once::new();
 static TEST_GDT: Once<GlobalDescriptorTable> = Once::new();
+
+trust::entry_asm!();
 
 #[no_mangle]
 pub extern "C" fn kernel_main(mbi_ptr: usize) -> ! {
@@ -97,6 +99,11 @@ fn init_test_idt(memory_controller: &mut MemoryController) {
     }
 
     TEST_IDT.load();
+}
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    test_panic_handler(info);
 }
 
 #[allow(unconditional_recursion)]

@@ -15,8 +15,10 @@ _long_mode_start:
 
     call kernel_main
 
-    # kernel should never return from Rust at this point.
-    # trap it if it happens anyway
+# ATTENTION! Kernel return is undefined behaviour and should never happen as enforced by
+# the Rust langauge. We will trap execution anyway should the above call ever return for 
+# some arbitrary weird reason:
+
 .die:
     hlt
     jmp .die

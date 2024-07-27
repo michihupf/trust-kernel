@@ -1,5 +1,7 @@
 ENTRY(start)
 
+PAGE_SIZE = 4K;
+
 SECTIONS {
   /* set load address to 1 MiB */
   . = 1M;
@@ -9,54 +11,53 @@ SECTIONS {
     /* ensure that the multiboot header is at the beginning */
     KEEP(*(.multiboot_header))
     *(.rodata .rodata.*)
-    . = ALIGN(4K);
+    . = ALIGN(PAGE_SIZE);
   }
 
   .text :
   {
     *(.text .text.*)
-    . = ALIGN(4K);
+    . = ALIGN(PAGE_SIZE);
   }
 
   .data :
   {
     *(.data .data.*)
-    . = ALIGN(4K);
+    . = ALIGN(PAGE_SIZE);
   }
 
   .bss :
   {
     *(.bss .bss.*)
-    . = ALIGN(4K);
+    . = ALIGN(PAGE_SIZE);
   }
 
   .got :
   {
     *(.got)
-    . = ALIGN(4K);
+    *(.igot)
+    . = ALIGN(PAGE_SIZE);
   }
 
-  .got.plt :
-  {
+  .got.plt : ALIGN(PAGE_SIZE) {
     *(.got.plt)
-    . = ALIGN(4K);
+    *(.igot.plt)
   }
 
-  .data.rel.ro : ALIGN(4K)
-  {
+  .data.rel.ro : ALIGN(PAGE_SIZE) {
     *(.data.rel.ro.local*) *(.data.rel.ro .data.rel.ro.*)
-    . = ALIGN(4K);
   }
 
-  .gcc_except_table : ALIGN(4K)
-  {
+  .gcc_except_table : ALIGN(PAGE_SIZE) {
     *(.gcc_except_table)
-    . = ALIGN(4K);
   }
 
-  .note : ALIGN(4K)
-  {
+  /DISCARD/ : {
+    *(.group)
     *(.note.*)
-    . = ALIGN(4K);
+    *(.comment)
+    *(.interp)
+    *(.init)
+    *(.fini)
   }
 }

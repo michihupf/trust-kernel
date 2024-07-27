@@ -1,10 +1,40 @@
+#![feature(custom_test_frameworks)]
+#![test_runner(trust::test_runner)]
+#![reexport_test_harness_main = "test_main"]
 #![no_std]
 #![no_main]
 
-// this makes sure we use the panic_handler from trust.
-#[allow(unused_imports, clippy::single_component_path_imports)]
-use trust;
+trust::entry_asm!();
 
-core::arch::global_asm!(include_str!("arch/x86_64/boot.s"));
-core::arch::global_asm!(include_str!("arch/x86_64/multiboot_header.s"));
-core::arch::global_asm!(include_str!("arch/x86_64/long_mode_init.s"));
+/// This is the kernel entry point. It is called by the bootloader.
+#[no_mangle]
+pub extern "C" fn kernel_main(mbi_ptr: usize) -> ! {
+    // kernel entry point
+    trust::kernel_main(mbi_ptr)
+}
+
+#[cfg(test)]
+mod panic {
+    use core::panic::PanicInfo;
+
+    use trust::test_panic_handler;
+
+    #[panic_handler]
+    fn panic(info: &PanicInfo) -> ! {
+        test_panic_handler(info);
+    }
+}
+
+#[cfg(not(test))]
+mod panic {
+    use core::panic::PanicInfo;
+
+    use trust::{hlt_forever, println};
+
+    /// This function is called on panic and prints information to VGA text buffer.
+    #[panic_handler]
+    fn panic(info: &PanicInfo) -> ! {
+        println!("{}", info);
+        hlt_forever();
+    }
+}

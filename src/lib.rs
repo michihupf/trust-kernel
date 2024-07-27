@@ -121,42 +121,44 @@ pub extern "C" fn kernel_main(mbi_ptr: usize) -> ! {
     // enable external interrupts
     status_print!("enabling external interrupts" => x86_64::instructions::interrupts::enable());
 
-    // run tests when in test config
-    #[cfg(test)]
-    test_main();
+    // // run tests when in test config
+    // #[cfg(test)]
+    // test_main();
 
-    // print CPU Vendor
-    // SAFETY: cpuid is available and CPUID.0h is then always possible
-    let cpuid = unsafe { core::arch::x86_64::__cpuid(0) };
-    let ebx = cpuid.ebx;
-    let edx = cpuid.edx;
-    let ecx = cpuid.ecx;
+    // // print CPU Vendor
+    // // SAFETY: cpuid is available and CPUID.0h is then always possible
+    // let cpuid = unsafe { core::arch::x86_64::__cpuid(0) };
+    // let ebx = cpuid.ebx;
+    // let edx = cpuid.edx;
+    // let ecx = cpuid.ecx;
 
-    let cpu_vendor = [ebx.to_ne_bytes(), edx.to_ne_bytes(), ecx.to_ne_bytes()].concat();
-    let cpu_vendor = String::from_utf8(cpu_vendor).unwrap();
-    println!("CPU Vendor: {cpu_vendor}");
+    // let cpu_vendor = [ebx.to_ne_bytes(), edx.to_ne_bytes(), ecx.to_ne_bytes()].concat();
+    // let cpu_vendor = String::from_utf8(cpu_vendor).unwrap();
+    // println!("CPU Vendor: {cpu_vendor}");
 
-    // get logical core count per cpu
-    // SAFETY: cpuid is available and CPUID.1h is always available
-    let cpuid = unsafe { core::arch::x86_64::__cpuid(1) };
-    let ebx = cpuid.ebx;
+    // // get logical core count per cpu
+    // // SAFETY: cpuid is available and CPUID.1h is always available
+    // let cpuid = unsafe { core::arch::x86_64::__cpuid(1) };
+    // let ebx = cpuid.ebx;
 
-    let logic_cpus = ebx & bitmask!(23..16);
-    println!("cpus (logical): {logic_cpus}");
+    // let logic_cpus = ebx & bitmask!(23..16);
+    // println!("cpus (logical): {logic_cpus}");
 
-    // get number of cpu cores when vendor is AuthenticAMD
-    // SAFETY: cpuid is available and CPUID.8000_0008h is always available
-    let cpuid = unsafe { core::arch::x86_64::__cpuid(0x8000_0008) };
-    let ecx = cpuid.ecx;
+    // // get number of cpu cores when vendor is AuthenticAMD
+    // // SAFETY: cpuid is available and CPUID.8000_0008h is always available
+    // let cpuid = unsafe { core::arch::x86_64::__cpuid(0x8000_0008) };
+    // let ecx = cpuid.ecx;
 
-    let cores = ecx & bitmask!(7..0);
+    // let cores = ecx & bitmask!(7..0);
 
-    println!("cores: {cores}, [ecx]: {ecx:#b}");
+    // println!("cores: {cores}, [ecx]: {ecx:#b}");
 
-    // test asynchronous tasks
-    let mut executor = Executor::new();
-    executor.spawn(Task::new(keyboard::print_keypresses()));
-    executor.run();
+    // // test asynchronous tasks
+    // let mut executor = Executor::new();
+    // executor.spawn(Task::new(keyboard::print_keypresses()));
+    // executor.run();
+
+    hlt_forever();
 }
 
 #[lang = "eh_personality"]

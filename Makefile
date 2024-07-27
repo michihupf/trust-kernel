@@ -37,7 +37,7 @@ gdb:
 
 iso: $(iso)
 
-$(iso): $(kernel) $(grub_cfg)
+$(iso): kernel $(grub_cfg)
 	@mkdir -p build/iso/boot/grub
 	@cp $(kernel) build/iso/boot/kernel.bin
 	@cp $(grub_cfg) build/iso/boot/grub
@@ -45,7 +45,7 @@ $(iso): $(kernel) $(grub_cfg)
 	@rm -r build/iso
 
 $(kernel): kernel $(trust) $(linker_script)
-	@ld -n --gc-sections -T $(linker_script) -o $(kernel) $(trust)
 
 kernel:
 	@RUST_TARGET_PATH=$(shell pwd) cargo build --target $(target) $(flags)
+	@cp target/x86_64-trust/debug/trust $(kernel)

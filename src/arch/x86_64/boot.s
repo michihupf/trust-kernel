@@ -1,11 +1,12 @@
 .code32
-.global main
+.global start
 .extern _long_mode_start
+.version "0.0.1"
 
 .section .text
 
-main:
-	mov esp, stack_top
+start:
+	mov esp, offset stack_top
 	mov edi, ebx # move multiboot info pointer to edi
 
 	#    perform checks
@@ -13,14 +14,15 @@ main:
 	call check_cpuid
 	call check_long_mode
 
-	#    setup paging
+	# #    setup paging
 	call setup_page_tables # prepare page tables
 	call enable_paging
 
-	#    load 64-bit GDT
+	# #    load 64-bit GDT
 	lgdt [gdt64pointer]
-	mov es, [gdt_offset]
-	jmp es:_long_mode_start
+	jmp 0x08, offset _long_mode_start    # long jump to 64-bit long mode :D
+
+# ATTENTION! Kernel return is undefined behaviour and therefore this jump is the last in 32 bit land!
 
 check_multiboot:
 	cmp eax, 0x36d76289
@@ -41,7 +43,7 @@ check_cpuid:
 	mov ecx, eax
 
 	#   Flip ID
-	xor eax, 0x00200000
+	xor eax, 0x200000
 
 	#    Apply FLAGS
 	push eax
@@ -84,19 +86,19 @@ check_long_mode:
 
 setup_page_tables:
 	#   map last P4 entry to P4 table for recursive access later
-	mov eax, p4_table
+	mov eax, offset p4_bottom
 	or eax, 0b11 # present + writable
-	mov dword ptr [p4_table + 511 * 8], eax
+	mov dword ptr [p4_bottom + 511 * 8], eax
 	
 	#   map first P4 entry to P3 table
-	mov eax, p3_table
+	mov eax, offset p3_bottom
 	or  eax, 0b11 # present + writable
-	mov dword ptr [p4_table], eax
+	mov dword ptr [p4_bottom], eax
 
 	#   map first P3 entry to P2 table
-	mov eax, p2_table
+	mov eax, offset p2_bottom
 	or  eax, 0b11 # present + writable
-	mov dword ptr [p3_table], eax
+	mov dword ptr [p3_bottom], eax
 
 	#   map each P2 entry to a huge 2MiB page
 	mov ecx, 0 # counter
@@ -106,7 +108,7 @@ setup_page_tables:
 	mov eax, 0x200000 # 2MiB
 	mul ecx
 	or  eax, 0b10000011 # present + writable + huge
-	mov dword ptr [p2_table + ecx * 8], eax # map ecx-th entry
+	mov dword ptr [p2_bottom + ecx * 8], eax # map ecx-th entry
 
 	inc ecx
 	cmp ecx, 512 # we have 512 table entries
@@ -116,7 +118,7 @@ setup_page_tables:
 
 enable_paging:
 	#   load P4 to CR3
-	mov eax, p4_table
+	mov eax, offset p4_bottom
 	mov cr3, eax
 
 	#   enable PAE in cr4
@@ -150,20 +152,24 @@ error:
 .section .rodata
 gdt64:
 	.quad 0 # 0-entry
-gdt64code:
-	.equ gdt_offset, . - gdt64
+	.equ GDT_CS, . - gdt64 # FIXME
 	.quad  (1<<43) | (1<<44) | (1<<47) | (1<<53) # code segment
 gdt64pointer:
 	.word . - gdt64 - 1
 	.quad gdt64
 
 .section .bss
-.align   4096
+.balign 4096
 
-.lcomm p4_table, 4096
-.lcomm p3_table, 4096
-.lcomm p2_table, 4096
-.lcomm p1_table, 4096
+p4_bottom:
+.space 4096
+p3_bottom:
+.space 4096
+p2_bottom:
+.space 4096
+p1_bottom:
+.space 4096
 
-.lcomm stack_bottom, 16384
+stack_bottom:
+.space 4096 * 4
 stack_top:

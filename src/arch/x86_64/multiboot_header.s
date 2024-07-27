@@ -1,4 +1,5 @@
-.section .mutliboot_header
+.code32
+.section .multiboot_header
 
 header_start:
     .int 0xE85250D6        # magic number (multiboot 2)

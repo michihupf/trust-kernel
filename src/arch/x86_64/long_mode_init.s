@@ -1,5 +1,6 @@
 .code64
 .global _long_mode_start
+.extern kernel_main
 
 .section .text
 
@@ -12,11 +13,10 @@ _long_mode_start:
     mov fs, ax
     mov gs, ax
 
-    # call kernel main
-    # extern kernel_main
-    # call kernel_main
+    call kernel_main
 
-    # print `OK` to the VGA buffer
-    mov eax, 0x0f4b0f4f
-    mov dword ptr [0xb8000], eax
+    # kernel should never return from Rust at this point.
+    # trap it if it happens anyway
+.die:
     hlt
+    jmp .die

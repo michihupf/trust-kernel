@@ -1,6 +1,6 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(trust::test_runner)]
-#![reexport_test_harness_main = "test_main"]
+#![reexport_test_harness_main = "trust::test_main"]
 #![no_std]
 #![no_main]
 
@@ -10,7 +10,7 @@ trust::entry_asm!();
 #[no_mangle]
 pub extern "C" fn kernel_main(mbi_ptr: usize) -> ! {
     // kernel entry point
-    trust::kernel_main(mbi_ptr)
+    trust::kernel_main(mbi_ptr) // this somehow doesn't get any #[cfg(test)] treatment when in test config??
 }
 
 #[cfg(test)]

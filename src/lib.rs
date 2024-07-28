@@ -139,7 +139,10 @@ pub fn kernel_main(mbi_ptr: usize) -> ! {
     // enable external interrupts
     status_print!("enabling external interrupts" => x86_64::instructions::interrupts::enable());
 
-    // // run tests when in test config
+    // // //  GENERAL  INIT  DONE  // // //
+    // --   Tests may proceed below   -- //
+
+    // run tests when in test config
     #[cfg(test)]
     test_main();
 

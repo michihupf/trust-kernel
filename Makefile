@@ -1,35 +1,22 @@
 arch ?= x86_64
-kernel := build/kernel-$(arch).bin
 iso := build/os-$(arch).iso
 
-linker_script := src/arch/$(arch)/linker.ld
 grub_cfg := src/arch/$(arch)/grub.cfg
-assembly_source_files := $(wildcard src/arch/$(arch)/*.asm)
-assembly_object_files := $(patsubst src/arch/$(arch)/%.asm, \
-		build/arch/$(arch)/%.o, $(assembly_source_files))
-
-target ?= $(arch)-trust
-
-flags := $(CARGO_FLAGS)
-
-.PHONY: all clean run iso kernel
-
-all: $(kernel)
 
 clean:
 	@rm -r build
 
 run: $(iso)
-	@qemu-system-x86_64 -serial stdio -cdrom $(iso) -s
+	@qemu-system-$(arch) -serial stdio -cdrom $(iso) -s
 
 debug: $(iso)
-	@qemu-system-x86_64 -serial stdio -cdrom $(iso) -s -S
+	@qemu-system-$(arch) -serial stdio -cdrom $(iso) -s -S
 
-test: $(test_iso)
-	@qemu-system-x86_64 -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none $(test_iso)
+test: $(iso)
+	@qemu-system-$(arch) -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none -cdrom $(iso)
 
 dint: $(iso)
-	@qemu-system-x86_64 -serial -d int -no-reboot -cdrom $(iso)
+	@qemu-system-$(arch) -serial -d int -no-reboot -cdrom $(iso)
 
 gdb:
 	@gdb $(KERNEL_BIN) -ex "target remote :1234"

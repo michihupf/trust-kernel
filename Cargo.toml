@@ -60,3 +60,6 @@ harness = false
 name = "stack_overflow"
 harness = false
 
+[profile.release]
+strip = true
+

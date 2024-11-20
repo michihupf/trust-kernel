@@ -1,3 +1,6 @@
+use core::ptr::NonNull;
+
+use alloc::sync::Arc;
 use area_frame_allocator::AreaFrameAllocator;
 use multiboot2::BootInformation;
 use paging::{entry::EntryFlags, ActivePageTable, Page, PhysAddr};
@@ -5,80 +8,20 @@ use stack_allocator::{Stack, StackAllocator};
 // use bootloader::bootinfo::{MemoryMap, MemoryRegionType};
 
 pub mod area_frame_allocator;
+pub mod heap;
 pub mod paging;
 pub mod stack_allocator;
 
 pub use self::paging::remap_kernel;
 pub use paging::test_paging;
 
-pub use crate::heap::ALLOCATOR;
+pub use heap::ALLOCATOR;
 
 pub const PAGE_SIZE: usize = 4096;
 
 pub const HEAP_START: usize = 0x_4444_4444_0000;
 pub const HEAP_SIZE: usize = 100 * 1024; // 100 KiB
 pub const HEAP_END: usize = HEAP_START + HEAP_SIZE;
-
-/// Initialize a new [`OffsetPageTable`].
-///
-/// # Safety
-/// This function is unsafe because the caller must guarantee that the
-/// complete physical memory is mapped to virtual memory at the passed
-/// `physical_memory_offset`. Also, this function must be only called once
-/// to avoid aliasing `&mut` references (which is undefined behavior).
-#[must_use]
-// pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static> {
-//     let l4_page_table = active_l4_page_table(physical_memory_offset);
-//     OffsetPageTable::new(l4_page_table, physical_memory_offset)
-// }
-
-/// Returns a mutable reference to the active level 4 page table.
-///
-/// # Safety
-/// This function is unsafe as the caller must guarantee that the complete physical memory is
-/// mapped to virutal memory at the passed `physical_memory_offset`. Also, this function must
-/// only be called one to avoid undefined behaviour because of `&mut` reference aliasing.
-// unsafe fn active_l4_page_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable {
-//     use x86_64::registers::control::Cr3;
-
-//     let (l4_table_frame, _flags) = Cr3::read();
-
-//     let phys = l4_table_frame.start_address();
-//     let virt = physical_memory_offset + phys.as_u64();
-//     let page_table_ptr: *mut PageTable = virt.as_mut_ptr();
-
-//     &mut *page_table_ptr // unsafe
-// }
-
-// /// Creates an example mapping for the given page to frame `0xb8000` (the VGA text buffer).
-// ///
-// /// # Panics
-// /// Panics when memory mapping fails.
-// pub fn create_example_mapping(
-//     page: Page,
-//     mapper: &mut OffsetPageTable,
-//     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
-// ) {
-//     use x86_64::structures::paging::PageTableFlags as Flags;
-
-//     let frame = PhysFrame::containing_address(PhysAddr::new(0xb8000));
-//     let flags = Flags::PRESENT | Flags::WRITABLE;
-
-//     let map_to_result = unsafe {
-//         // FIXME: this is not safe
-//         mapper.map_to(page, frame, flags, frame_allocator)
-//     };
-//     map_to_result.expect("map_to failed").flush();
-// }
-
-// /// A [`FrameAllocator`] that always returns `None`.
-// pub struct EmptyFrameAllocator;
-
-// unsafe impl FrameAllocator<Size4KiB> for EmptyFrameAllocator {
-//     fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
-//         None
-//     }
-// }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Frame {
@@ -146,6 +89,15 @@ impl MemoryController {
         } = self;
 
         stack_allocator.alloc_stack(active_table, frame_allocator, n_pages)
+    }
+
+    pub fn id_map(&mut self, addr: PhysAddr, flags: EntryFlags) {
+        self.active_table.map_to(
+            Page::containing_address(addr),
+            Frame::containing_address(addr),
+            flags,
+            &mut self.frame_allocator,
+        );
     }
 }
 

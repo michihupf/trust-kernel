@@ -1,5 +1,4 @@
-use super::Locked;
-use crate::heap::align_up;
+use super::{align_up, Locked};
 use core::{
     alloc::{GlobalAlloc, Layout},
     mem, ptr,

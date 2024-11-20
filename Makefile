@@ -1,5 +1,6 @@
 arch ?= x86_64
 iso := build/os-$(arch).iso
+testiso := build/os-$(arch)-test.iso
 
 grub_cfg := src/arch/$(arch)/grub.cfg
 
@@ -12,8 +13,8 @@ run: $(iso)
 debug: $(iso)
 	@qemu-system-$(arch) -serial stdio -cdrom $(iso) -s -S
 
-test: $(iso)
-	@qemu-system-$(arch) -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none -cdrom $(iso)
+test: $(testiso)
+	@qemu-system-$(arch) -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none -cdrom $(testiso)
 
 dint: $(iso)
 	@qemu-system-$(arch) -serial -d int -no-reboot -cdrom $(iso)
@@ -28,4 +29,11 @@ $(iso): $(KERNEL_BIN) $(grub_cfg)
 	@cp $(KERNEL_BIN) build/iso/boot/kernel.bin
 	@cp $(grub_cfg) build/iso/boot/grub
 	@grub-mkrescue -o $(iso) -d /usr/lib/grub/i386-pc build/iso 2> /dev/null
+	@rm -r build/iso
+
+$(testiso): $(KERNEL_BIN) $(grub_cfg)
+	@mkdir -p build/iso/boot/grub
+	@cp $(KERNEL_BIN) build/iso/boot/kernel.bin
+	@cp $(grub_cfg) build/iso/boot/grub
+	@grub-mkrescue -o $(testiso) -d /usr/lib/grub/i386-pc build/iso 2> /dev/null
 	@rm -r build/iso

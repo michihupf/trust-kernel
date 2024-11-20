@@ -30,7 +30,8 @@
 #![no_std]
 #![no_main]
 
-pub mod heap;
+pub mod acpi;
+pub mod apic;
 pub mod idt;
 pub mod memory;
 pub mod serial;
@@ -44,6 +45,7 @@ use multiboot2::{BootInformation, BootInformationHeader};
 use task::{executor::Executor, keyboard, Task};
 use x86_64::registers::control::{Cr0, Cr0Flags, Efer, EferFlags};
 
+#[macro_use]
 extern crate alloc;
 extern crate rlibc;
 // extern crate compiler_builtins;
@@ -139,6 +141,9 @@ pub fn kernel_main(mbi_ptr: usize) -> ! {
     // enable external interrupts
     status_print!("enabling external interrupts" => x86_64::instructions::interrupts::enable());
 
+    // look for RSDP
+    acpi::try_init(&mbi, &mut memory_controller);
+
     // // //  GENERAL  INIT  DONE  // // //
     // --   Tests may proceed below   -- //
 
@@ -146,33 +151,7 @@ pub fn kernel_main(mbi_ptr: usize) -> ! {
     #[cfg(test)]
     test_main();
 
-    // print CPU Vendor
-    // SAFETY: cpuid is available and CPUID.0h is then always possible
-    let cpuid = unsafe { core::arch::x86_64::__cpuid(0) };
-    let ebx = cpuid.ebx;
-    let edx = cpuid.edx;
-    let ecx = cpuid.ecx;
-
-    let cpu_vendor = [ebx.to_ne_bytes(), edx.to_ne_bytes(), ecx.to_ne_bytes()].concat();
-    let cpu_vendor = String::from_utf8(cpu_vendor).unwrap();
-    println!("CPU Vendor: {cpu_vendor}");
-
-    // get logical core count per cpu
-    // SAFETY: cpuid is available and CPUID.1h is always available
-    let cpuid = unsafe { core::arch::x86_64::__cpuid(1) };
-    let ebx = cpuid.ebx;
-
-    let logic_cpus = ebx & bitmask!(23..16);
-    println!("cpus (logical): {logic_cpus}");
-
-    // get number of cpu cores when vendor is AuthenticAMD
-    // SAFETY: cpuid is available and CPUID.8000_0008h is always available
-    let cpuid = unsafe { core::arch::x86_64::__cpuid(0x8000_0008) };
-    let ecx = cpuid.ecx;
-
-    let cores = ecx & bitmask!(7..0);
-
-    println!("cores: {cores}, [ecx]: {ecx:#b}");
+    print_cpu_info();
 
     // test asynchronous tasks
     let mut executor = Executor::new();
@@ -193,7 +172,7 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 /// Enables the NO_EXECUTE bit in the Extended Feature Enable Register (EFER).
-pub fn enable_nxe_bit() {
+fn enable_nxe_bit() {
     // SAFETY: EFER accesses are only allowed in kernel mode. We are in kernel mode.
     unsafe {
         let mut msr = Efer::MSR;
@@ -203,15 +182,41 @@ pub fn enable_nxe_bit() {
 }
 
 /// Enables write protection on page entries that do no have the [`WRITABLE`][EntryFlags] flag set.
-pub fn enable_wp_bit() {
+fn enable_wp_bit() {
     // SAFETY: CR0 accesses are only allowed in kernel mode. We are in kernel mode.
     unsafe { Cr0::write(Cr0::read() | Cr0Flags::WRITE_PROTECT) }
 }
 
-/// Initializes important systems like IDT, GDT and PIC8259.
-pub fn init_basics() {
-    // x86_64::instructions::interrupts::enable();
-    // println!("Enabled external interrupts.");
+fn print_cpu_info() {
+    // print CPU Vendor
+    // SAFETY: cpuid is available and CPUID.0h is then always possible
+    let cpuid = unsafe { core::arch::x86_64::__cpuid(0) };
+    let ebx = cpuid.ebx;
+    let edx = cpuid.edx;
+    let ecx = cpuid.ecx;
+
+    let cpu_vendor = [ebx.to_ne_bytes(), edx.to_ne_bytes(), ecx.to_ne_bytes()].concat();
+    let cpu_vendor = String::from_utf8(cpu_vendor).unwrap();
+    println!("CPU Vendor: {cpu_vendor}");
+
+    // get logical core count per cpu
+    // SAFETY: cpuid is available and CPUID.1h is always available
+    let cpuid = unsafe { core::arch::x86_64::__cpuid(1) };
+    let ebx = cpuid.ebx;
+
+    let logic_cpus = ebx & bitmask!(23..16);
+    println!("cpus (logical): {logic_cpus}");
+
+    // get number of cpu cores when vendor is AuthenticAMD
+    if cpu_vendor == "AuthenticAMD" {
+        // SAFETY: cpuid is available and CPUID.8000_0008h is always available
+        let cpuid = unsafe { core::arch::x86_64::__cpuid(0x8000_0008) };
+        let ecx = cpuid.ecx;
+
+        let cores = ecx & bitmask!(7..0);
+
+        println!("cores: {cores}, [ecx]: {ecx:#b}");
+    }
 }
 
 pub fn hlt_forever() -> ! {

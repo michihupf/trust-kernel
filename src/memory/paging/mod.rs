@@ -265,6 +265,18 @@ where
         let vga_buffer_frame = Frame::containing_address(0xb8000);
         mapper.id_map(vga_buffer_frame, EntryFlags::WRITABLE, allocator);
 
+        // identity map BIOS area (1st MB)
+        // for frame in Frame::range_inclusive(
+        //     Frame::containing_address(0x0),
+        //     Frame::containing_address(0xfffff),
+        // ) {
+        //     // skip VGA text buffer
+        //     if frame == Frame::containing_address(0xb8000) {
+        //         continue;
+        //     }
+        //     mapper.id_map(frame, EntryFlags::PRESENT, allocator);
+        // }
+
         // identity map the MBI
         let mbi_start = Frame::containing_address(mbi.start_address());
         let mbi_end = Frame::containing_address(mbi.end_address() - 1);

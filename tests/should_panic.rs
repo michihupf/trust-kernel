@@ -12,9 +12,6 @@ pub extern "C" fn kernel_entrypoint() -> ! {
     wrong_assertion();
     serial_println!("[no panic]");
     exit_qemu(QemuExitCode::Fail);
-
-    // CPU never halts because we exit qemu before
-    trust::hlt_forever();
 }
 
 #[cfg(test)]
@@ -22,9 +19,6 @@ pub extern "C" fn kernel_entrypoint() -> ! {
 fn panic(_info: &PanicInfo) -> ! {
     serial_println!("\r[ok] should_panic::wrong_assertion");
     exit_qemu(trust::QemuExitCode::Success);
-
-    // CPU never halts because we exit qemu before
-    trust::hlt_forever();
 }
 
 fn wrong_assertion() {

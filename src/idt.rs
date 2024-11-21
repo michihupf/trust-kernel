@@ -1,4 +1,4 @@
-use crate::{hlt_forever, memory::MemoryController, print, println, status_print};
+use crate::{hlt_forever, memory::MemoryController, println, status_print};
 #[allow(unused_imports)]
 use core::arch::asm;
 use lazy_static::lazy_static;
@@ -281,7 +281,7 @@ impl InterruptIndex {
 
 /// Interrupt handler for the Intel 8253 timer interrupt.
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    use core::sync::atomic::AtomicUsize;
+    // use core::sync::atomic::AtomicUsize;
 
     // static COUNTER: AtomicUsize = AtomicUsize::new(0);
     // let current = COUNTER.fetch_add(1, core::sync::atomic::Ordering::Relaxed) % 78;

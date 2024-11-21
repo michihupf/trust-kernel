@@ -63,9 +63,6 @@ extern "x86-interrupt" fn double_fault_handler(
 ) -> ! {
     serial_println!("\r[ok] stack overflow test ");
     exit_qemu(trust::QemuExitCode::Success);
-
-    // CPU never halts because we exit qemu before
-    trust::hlt_forever();
 }
 
 fn init_test_idt(memory_controller: &mut MemoryController) {

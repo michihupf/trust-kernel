@@ -36,13 +36,13 @@ impl AreaFrameAllocator {
         memory_areas: *const [MemoryArea],
     ) -> Self {
         let mut allocator = AreaFrameAllocator {
-            next_free_frame: Frame::containing_address(0),
+            next_free_frame: Frame::containing(0),
             current_area: None,
             areas: memory_areas,
-            kernel_start: Frame::containing_address(kernel_start),
-            kernel_end: Frame::containing_address(kernel_end),
-            mbi_start: Frame::containing_address(mbi_start),
-            mbi_end: Frame::containing_address(mbi_end),
+            kernel_start: Frame::containing(kernel_start),
+            kernel_end: Frame::containing(kernel_end),
+            mbi_start: Frame::containing(mbi_start),
+            mbi_end: Frame::containing(mbi_end),
         };
 
         allocator.pick_next_area(); // pick next area so current_area is correctly set
@@ -51,7 +51,7 @@ impl AreaFrameAllocator {
 }
 
 impl FrameAllocator for AreaFrameAllocator {
-    fn allocate_frame(&mut self) -> Option<Frame> {
+    fn kalloc_frame(&mut self) -> Option<Frame> {
         if let Some(area) = self.current_area {
             let frame = Frame {
                 number: self.next_free_frame.number,
@@ -59,7 +59,7 @@ impl FrameAllocator for AreaFrameAllocator {
 
             let current_area_last_frame = {
                 let addr = area.start_address() + area.size() - 1;
-                Frame::containing_address(addr as usize)
+                Frame::containing(addr as usize)
             };
 
             if frame > current_area_last_frame {
@@ -77,13 +77,13 @@ impl FrameAllocator for AreaFrameAllocator {
                 return Some(frame);
             }
 
-            self.allocate_frame()
+            self.kalloc_frame()
         } else {
             None // no frames left
         }
     }
 
-    fn deallocate_frame(&mut self, frame: Frame) {
+    fn kfree_frame(&mut self, frame: Frame) {
         // TODO
     }
 }
@@ -96,12 +96,12 @@ impl AreaFrameAllocator {
             .iter()
             .filter(|area| {
                 let addr = area.start_address() + area.size() - 1;
-                Frame::containing_address(addr as usize) >= self.next_free_frame
+                Frame::containing(addr as usize) >= self.next_free_frame
             })
             .min_by_key(|area| area.start_address());
 
         if let Some(area) = self.current_area {
-            let start_frame = Frame::containing_address(area.start_address() as usize);
+            let start_frame = Frame::containing(area.start_address() as usize);
             if self.next_free_frame < start_frame {
                 self.next_free_frame = start_frame;
             }

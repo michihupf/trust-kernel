@@ -1,6 +1,5 @@
-isopath := "build/os-{{arch}}.iso"
 arch  := "x86_64"
-
+isopath := "build/os-" + arch + ".iso"
 grub_cfg := "src/arch/" + arch + "/grub.cfg"
 
 features := ""

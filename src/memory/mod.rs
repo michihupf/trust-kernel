@@ -28,12 +28,12 @@ pub struct Frame {
 }
 
 pub trait FrameAllocator {
-    fn allocate_frame(&mut self) -> Option<Frame>;
-    fn deallocate_frame(&mut self, frame: Frame);
+    fn kalloc_frame(&mut self) -> Option<Frame>;
+    fn kfree_frame(&mut self, frame: Frame);
 }
 
 impl Frame {
-    fn containing_address(addr: usize) -> Frame {
+    fn containing(addr: PhysAddr) -> Frame {
         Frame {
             number: addr / PAGE_SIZE,
         }
@@ -49,7 +49,7 @@ impl Frame {
         }
     }
 
-    fn start_address(&self) -> PhysAddr {
+    fn start(&self) -> PhysAddr {
         self.number * PAGE_SIZE
     }
 }
@@ -93,7 +93,7 @@ impl MemoryController {
     pub fn id_map(&mut self, addr: PhysAddr, flags: EntryFlags) {
         self.active_table.map_to(
             Page::containing_address(addr),
-            Frame::containing_address(addr),
+            Frame::containing(addr),
             flags,
             &mut self.frame_allocator,
         );

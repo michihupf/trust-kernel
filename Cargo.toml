@@ -18,7 +18,6 @@ x86_64 = { version = "=0.14.7", default-features = false, features = ["instructi
 uart_16550 = "0.2.0"
 pic8259 = "0.10.1"
 pc-keyboard = "0.5.0"
-linked_list_allocator = "0.9.0"
 bitflags = "2.6.0"
 rlibc = "1.0.0"
 entry = "0.2.1"
@@ -44,11 +43,6 @@ default-features = false
 version = "0.3.4"
 default-features = false
 features = ["alloc"]
-
-# [package.metadata.bootimage]
-# run-args = ["-serial", "stdio"]
-# test-args = ["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio", "-display", "none"]
-# test-success-exit-code = 33      # (0x10 << 1) | 1
 
 [[test]]
 name = "should_panic"

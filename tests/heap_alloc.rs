@@ -8,7 +8,7 @@ use core::panic::PanicInfo;
 
 use alloc::boxed::Box;
 use multiboot2::{BootInformation, BootInformationHeader};
-use trust::{hlt_forever, memory, print, println, status_print};
+use trust::{hlt_forever, memory};
 
 extern crate alloc;
 
@@ -20,8 +20,6 @@ pub extern "C" fn kernel_entrypoint(mbi_ptr: usize) -> ! {
     let mbi = unsafe { BootInformation::load(mbi_ptr as *const BootInformationHeader).unwrap() };
 
     let _memory_controller = memory::init(&mbi);
-
-    println!("Memory initialized");
 
     test_main();
 

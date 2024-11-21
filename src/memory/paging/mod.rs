@@ -104,14 +104,14 @@ where
 
     let addr = 42 * 512 * 512 * 4096; // 42-th P3 entry
     let page = Page::containing_address(addr);
-    let frame = allocator.allocate_frame().expect("no more frames");
+    let frame = allocator.kalloc_frame().expect("no more frames");
 
     println!("None = {:?}, map to {frame:?}", page_table.translate(addr));
 
     page_table.map_to(page, frame, EntryFlags::empty(), allocator);
 
     println!("Some = {:?}", page_table.translate(addr));
-    println!("next free frame: {:?}", allocator.allocate_frame());
+    println!("next free frame: {:?}", allocator.kalloc_frame());
 
     page_table.unmap(Page::containing_address(addr), allocator);
     // println!("None = {:?}", page_table.translate(addr));
@@ -196,7 +196,7 @@ impl ActivePageTable {
         unsafe {
             control::Cr3::write(
                 PhysFrame::from_start_address_unchecked(PhysAddr::new(
-                    new_table.p4_frame.start_address() as u64,
+                    new_table.p4_frame.start() as u64
                 )),
                 flags,
             );
@@ -236,7 +236,7 @@ where
     // Safety: used to set the new active page table below. It is the only one!
     let mut active_table = unsafe { ActivePageTable::new() };
     let mut new_table = {
-        let frame = allocator.allocate_frame().expect("no more frames");
+        let frame = allocator.kalloc_frame().expect("no more frames");
         InactivePageTable::new(frame, &mut active_table, &mut tmp_page)
     };
 
@@ -263,15 +263,15 @@ where
 
             let flags = EntryFlags::from_elf_section(&section);
 
-            let start_frame = Frame::containing_address(section.start_address() as usize);
-            let end_frame = Frame::containing_address(section.end_address() as usize - 1);
+            let start_frame = Frame::containing(section.start_address() as usize);
+            let end_frame = Frame::containing(section.end_address() as usize - 1);
             for frame in Frame::range_inclusive(start_frame, end_frame) {
                 mapper.id_map(frame, flags, allocator);
             }
         }
 
         println!("mapping vga buffer at 0xb8000");
-        let vga_buffer_frame = Frame::containing_address(0xb8000);
+        let vga_buffer_frame = Frame::containing(0xb8000);
         mapper.id_map(vga_buffer_frame, EntryFlags::WRITABLE, allocator);
 
         // identity map BIOS area (1st MB)
@@ -291,8 +291,8 @@ where
             mbi.start_address(),
             mbi.end_address() - 1
         );
-        let mbi_start = Frame::containing_address(mbi.start_address());
-        let mbi_end = Frame::containing_address(mbi.end_address() - 1);
+        let mbi_start = Frame::containing(mbi.start_address());
+        let mbi_end = Frame::containing(mbi.end_address() - 1);
         for frame in Frame::range_inclusive(mbi_start, mbi_end) {
             mapper.id_map(frame, EntryFlags::PRESENT, allocator);
         }
@@ -301,7 +301,7 @@ where
     let old_table = active_table.switch(new_table);
 
     println!("creating guard page from previous p4 table");
-    let old_p4 = Page::containing_address(old_table.p4_frame.start_address());
+    let old_p4 = Page::containing_address(old_table.p4_frame.start());
     active_table.unmap(old_p4, allocator);
     println!("guard page at {:#x}", old_p4.start_address());
 

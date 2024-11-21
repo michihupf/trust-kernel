@@ -54,7 +54,7 @@ impl TemporaryPage {
 struct TinyAllocator([Option<Frame>; 3]);
 
 impl FrameAllocator for TinyAllocator {
-    fn allocate_frame(&mut self) -> Option<Frame> {
+    fn kalloc_frame(&mut self) -> Option<Frame> {
         for frame in &mut self.0 {
             if frame.is_some() {
                 return frame.take();
@@ -63,7 +63,7 @@ impl FrameAllocator for TinyAllocator {
         None
     }
 
-    fn deallocate_frame(&mut self, frame: Frame) {
+    fn kfree_frame(&mut self, frame: Frame) {
         for maybe_frame in &mut self.0 {
             if maybe_frame.is_none() {
                 *maybe_frame = Some(frame);
@@ -79,7 +79,7 @@ impl TinyAllocator {
     where
         A: FrameAllocator,
     {
-        let mut f = || allocator.allocate_frame();
+        let mut f = || allocator.kalloc_frame();
         let frames = [f(), f(), f()];
         TinyAllocator(frames)
     }

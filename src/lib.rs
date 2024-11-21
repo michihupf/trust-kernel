@@ -26,7 +26,8 @@
 //     clippy::style,
 //     clippy::suspicious
 // )]
-// #![allow(clippy::cargo_common_metadata)]
+#![allow(clippy::cargo_common_metadata)]
+#![allow(clippy::upper_case_acronyms)]
 #![no_std]
 #![no_main]
 
@@ -41,12 +42,11 @@ pub mod vga_buffer;
 use alloc::string::String;
 #[allow(unused_imports)]
 use core::panic::PanicInfo;
-use core::{sync, time::Duration};
 use multiboot2::{BootInformation, BootInformationHeader};
 use task::{executor::Executor, keyboard, Task};
 use x86_64::registers::control::{Cr0, Cr0Flags, Efer, EferFlags};
 
-#[macro_use]
+// #[macro_use]
 extern crate alloc;
 extern crate rlibc;
 // extern crate compiler_builtins;
@@ -169,8 +169,6 @@ pub fn kernel_main(mbi_ptr: usize) -> ! {
     let mut executor = Executor::new();
     executor.spawn(Task::new(keyboard::print_keypresses()));
     executor.run();
-
-    // hlt_forever();
 }
 
 #[lang = "eh_personality"]

@@ -81,7 +81,7 @@ impl Mapper {
     pub fn translate(&self, addr: VirtAddr) -> Option<PhysAddr> {
         let offset = addr % PAGE_SIZE;
         self.translate_page(Page::containing_address(addr))
-            .map(|frame| frame.start_address() + offset)
+            .map(|frame| frame.start() + offset)
     }
 
     /// Maps a provided `page` to the provided `frame` with `flags`.
@@ -103,7 +103,7 @@ impl Mapper {
     where
         A: FrameAllocator,
     {
-        let frame = allocator.allocate_frame().expect("no frames available");
+        let frame = allocator.kalloc_frame().expect("no frames available");
         self.map_to(page, frame, flags, allocator);
     }
 
@@ -112,7 +112,7 @@ impl Mapper {
     where
         A: FrameAllocator,
     {
-        let page = Page::containing_address(frame.start_address());
+        let page = Page::containing_address(frame.start());
         self.map_to(page, frame, flags, allocator);
     }
 
@@ -144,6 +144,6 @@ impl Mapper {
         tlb::flush(VirtAddr::new(page.start_address() as u64));
 
         // TODO free p(1,2,3) if empty
-        allocator.deallocate_frame(frame);
+        allocator.kfree_frame(frame);
     }
 }

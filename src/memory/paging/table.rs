@@ -131,9 +131,7 @@ where
                 "mapping code does not support huge pages"
             );
 
-            let frame = allocator
-                .allocate_frame()
-                .expect("no more frames available");
+            let frame = allocator.kalloc_frame().expect("no more frames available");
             self[index].set(frame, EntryFlags::PRESENT | EntryFlags::WRITABLE);
             self.next_table_mut(index).unwrap().zero();
         }

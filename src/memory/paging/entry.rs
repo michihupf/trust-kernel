@@ -22,9 +22,7 @@ impl Entry {
     pub fn pointed_frame(&self) -> Option<Frame> {
         if self.flags().contains(EntryFlags::PRESENT) {
             // mask bits 51-12 as this is where the address is stored
-            Some(Frame::containing_address(
-                self.0 as usize & bitmask!(51..12),
-            ))
+            Some(Frame::containing(self.0 as usize & bitmask!(51..12)))
         } else {
             None
         }
@@ -32,8 +30,8 @@ impl Entry {
 
     /// Sets `flags` for this entry. `flags` has to be non-empty.
     pub fn set(&mut self, frame: Frame, flags: EntryFlags) {
-        assert!(frame.start_address() & !bitmask!(51..12) == 0);
-        self.0 = (frame.start_address() as u64) | flags.bits();
+        assert!(frame.start() & !bitmask!(51..12) == 0);
+        self.0 = (frame.start() as u64) | flags.bits();
     }
 }
 

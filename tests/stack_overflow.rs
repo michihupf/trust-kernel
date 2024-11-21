@@ -30,7 +30,7 @@ static TEST_GDT: Once<GlobalDescriptorTable> = Once::new();
 trust::entry_asm!();
 
 #[no_mangle]
-pub extern "C" fn kernel_main(mbi_ptr: usize) -> ! {
+pub extern "C" fn kernel_entrypoint(mbi_ptr: usize) -> ! {
     serial_print!("Testing stack overflow...\t");
 
     // Safety: mbi placed in by multiboot2 bootloader
@@ -110,7 +110,7 @@ fn panic(info: &PanicInfo) -> ! {
 fn stack_overflow() {
     stack_overflow(); // infinitely recurse
     const VAL: i32 = 0;
-    // UNSAFE: safe as we know the value exists.
+    // SAFETY: safe as we know the value exists.
     unsafe {
         core::ptr::read_volatile(&VAL); // prevent tail recursion optimization
     }

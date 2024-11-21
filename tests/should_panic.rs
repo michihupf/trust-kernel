@@ -8,7 +8,7 @@ use trust::{exit_qemu, serial_print, serial_println, QemuExitCode};
 trust::entry_asm!();
 
 #[no_mangle]
-pub extern "C" fn kernel_main() -> ! {
+pub extern "C" fn kernel_entrypoint() -> ! {
     wrong_assertion();
     serial_println!("[no panic]");
     exit_qemu(QemuExitCode::Fail);

@@ -1,6 +1,3 @@
-use core::ptr::NonNull;
-
-use alloc::sync::Arc;
 use area_frame_allocator::AreaFrameAllocator;
 use multiboot2::BootInformation;
 use paging::{entry::EntryFlags, ActivePageTable, Page, PhysAddr};
@@ -11,6 +8,8 @@ pub mod area_frame_allocator;
 pub mod heap;
 pub mod paging;
 pub mod stack_allocator;
+
+use crate::status_print;
 
 pub use self::paging::remap_kernel;
 pub use paging::test_paging;
@@ -117,7 +116,7 @@ pub fn init(mbi: &BootInformation) -> MemoryController {
         .max()
         .unwrap() as usize;
 
-    // Safety: memory areas will never be cleaned up or moved and USABLE areas are usable.
+    // SAFETY: memory areas will never be cleaned up or moved and USABLE areas are usable.
     let mut frame_allocator = unsafe {
         AreaFrameAllocator::new(
             kernel_start,
@@ -127,6 +126,10 @@ pub fn init(mbi: &BootInformation) -> MemoryController {
             memory_map_tag.memory_areas(),
         )
     };
+
+    // prepare remapping
+    status_print!("enabling NO_EXECUTE" => crate::enable_nxe_bit());
+    status_print!("enabling write protection" => crate::enable_wp_bit());
 
     let mut active_table = paging::remap_kernel(&mut frame_allocator, mbi);
 

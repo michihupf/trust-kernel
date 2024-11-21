@@ -1,4 +1,7 @@
-use core::ops::{Add, Deref, DerefMut};
+use core::{
+    ops::{Add, Deref, DerefMut},
+    panic,
+};
 
 use entry::EntryFlags;
 use mapper::Mapper;
@@ -178,12 +181,18 @@ impl ActivePageTable {
         use x86_64::registers::control;
         use x86_64::PhysAddr;
 
-        let old_table = InactivePageTable {
-            p4_frame: self.p4()[511].pointed_frame().unwrap(),
+        let p4_frame = match self.p4()[511].pointed_frame() {
+            None => {
+                println!("ERROR: switching active page tables failed. p4 frame was None.");
+                panic!("ERROR: switching active page tables failed. p4 frame was None.");
+            }
+            Some(v) => v,
         };
 
+        let old_table = InactivePageTable { p4_frame };
+
         let flags = control::Cr3::read().1;
-        // Safety: new table is a valid P4 table.
+        // SAFETY: new table is a valid P4 table.
         unsafe {
             control::Cr3::write(
                 PhysFrame::from_start_address_unchecked(PhysAddr::new(
@@ -261,7 +270,7 @@ where
             }
         }
 
-        // identity map the VGA text buffer
+        println!("mapping vga buffer at 0xb8000");
         let vga_buffer_frame = Frame::containing_address(0xb8000);
         mapper.id_map(vga_buffer_frame, EntryFlags::WRITABLE, allocator);
 
@@ -277,7 +286,11 @@ where
         //     mapper.id_map(frame, EntryFlags::PRESENT, allocator);
         // }
 
-        // identity map the MBI
+        println!(
+            "mapping mbi at {:#x}, end: {:#x}",
+            mbi.start_address(),
+            mbi.end_address() - 1
+        );
         let mbi_start = Frame::containing_address(mbi.start_address());
         let mbi_end = Frame::containing_address(mbi.end_address() - 1);
         for frame in Frame::range_inclusive(mbi_start, mbi_end) {
@@ -287,7 +300,7 @@ where
 
     let old_table = active_table.switch(new_table);
 
-    // turn old P4 table into guard page
+    println!("creating guard page from previous p4 table");
     let old_p4 = Page::containing_address(old_table.p4_frame.start_address());
     active_table.unmap(old_p4, allocator);
     println!("guard page at {:#x}", old_p4.start_address());

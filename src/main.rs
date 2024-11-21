@@ -6,11 +6,13 @@
 
 trust::entry_asm!();
 
-/// This is the kernel entry point. It is called by the bootloader.
 #[no_mangle]
-pub extern "C" fn kernel_main(mbi_ptr: usize) -> ! {
-    // kernel entry point
-    trust::kernel_main(mbi_ptr) // this somehow doesn't get any #[cfg(test)] treatment when in test config??
+pub extern "C" fn kernel_entrypoint(_mbi_ptr: usize) -> ! {
+    #[cfg(not(test))]
+    trust::kernel_main(_mbi_ptr);
+
+    #[cfg(test)]
+    trust::exit_qemu(trust::QemuExitCode::Success)
 }
 
 #[cfg(test)]

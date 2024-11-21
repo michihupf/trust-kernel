@@ -11,7 +11,7 @@ use trust::println;
 trust::entry_asm!();
 
 #[no_mangle]
-pub extern "C" fn kernel_main() -> ! {
+pub extern "C" fn kernel_entrypoint() -> ! {
     test_main();
 
     // CPU never halts because qemu is exited before

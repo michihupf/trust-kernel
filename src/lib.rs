@@ -13,7 +13,7 @@
     ptr_internals,
     // rustc_private
 )]
-#![test_runner(crate::test_runner)]
+#![test_runner(test_runner)]
 #![reexport_test_harness_main = "test_main"]
 #![forbid(clippy::undocumented_unsafe_blocks)]
 // #![warn(
@@ -41,6 +41,7 @@ pub mod vga_buffer;
 use alloc::string::String;
 #[allow(unused_imports)]
 use core::panic::PanicInfo;
+use core::{sync, time::Duration};
 use multiboot2::{BootInformation, BootInformationHeader};
 use task::{executor::Executor, keyboard, Task};
 use x86_64::registers::control::{Cr0, Cr0Flags, Efer, EferFlags};
@@ -53,14 +54,14 @@ extern crate rlibc;
 #[macro_export]
 macro_rules! status_print {
     ($msg:literal => $exp:expr) => {
-        print!("{}... ", $msg);
+        $crate::print!("{}... ", $msg);
         $exp;
-        println!("[ok]");
+        $crate::println!("[ok]");
     };
     ($msg:literal $($s:stmt);* $(;)*) => {
-        print!("{}... ", $msg);
+        $crate::print!("{}... ", $msg);
         $($s)*
-        println!("[ok]");
+        $crate::println!("[ok]");
     };
 }
 
@@ -119,6 +120,15 @@ fn bitmask_macro() {
     const _: () = assert!(bitmask!(18) == 1 << 18);
 }
 
+#[cfg(test)]
+entry_asm!();
+
+#[cfg(test)]
+#[no_mangle]
+pub extern "C" fn kernel_entrypoint(mbi_ptr: usize) -> ! {
+    kernel_main(mbi_ptr);
+}
+
 /// Kernel main!
 pub fn kernel_main(mbi_ptr: usize) -> ! {
     // print "Booting" to the screen
@@ -126,10 +136,6 @@ pub fn kernel_main(mbi_ptr: usize) -> ! {
 
     // SAFETY: mbi is placed here by multiboot2 bootloader
     let mbi = unsafe { BootInformation::load(mbi_ptr as *const BootInformationHeader).unwrap() };
-
-    // prepare remapping
-    status_print!("enabling NO_EXECUTE" => enable_nxe_bit());
-    status_print!("enabling write protection" => enable_wp_bit());
 
     let mut memory_controller = memory::init(&mbi);
 
@@ -149,9 +155,15 @@ pub fn kernel_main(mbi_ptr: usize) -> ! {
 
     // run tests when in test config
     #[cfg(test)]
-    test_main();
+    {
+        println!("Running tests");
+        test_main();
+    }
 
     print_cpu_info();
+
+    #[cfg(test)]
+    exit_qemu(QemuExitCode::Success);
 
     // test asynchronous tasks
     let mut executor = Executor::new();
@@ -172,7 +184,7 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 /// Enables the NO_EXECUTE bit in the Extended Feature Enable Register (EFER).
-fn enable_nxe_bit() {
+pub fn enable_nxe_bit() {
     // SAFETY: EFER accesses are only allowed in kernel mode. We are in kernel mode.
     unsafe {
         let mut msr = Efer::MSR;
@@ -182,7 +194,7 @@ fn enable_nxe_bit() {
 }
 
 /// Enables write protection on page entries that do no have the [`WRITABLE`][EntryFlags] flag set.
-fn enable_wp_bit() {
+pub fn enable_wp_bit() {
     // SAFETY: CR0 accesses are only allowed in kernel mode. We are in kernel mode.
     unsafe { Cr0::write(Cr0::read() | Cr0Flags::WRITE_PROTECT) }
 }
@@ -238,7 +250,7 @@ pub enum QemuExitCode {
 *
 * Shutdown implemtation should follow the APM and/or ACPI power management standard.
 */
-pub fn exit_qemu(exit_code: QemuExitCode) {
+pub fn exit_qemu(exit_code: QemuExitCode) -> ! {
     use x86_64::instructions::port::Port;
 
     let mut port = Port::new(0xf4);
@@ -246,15 +258,14 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
     unsafe {
         port.write(exit_code as u32);
     }
+
+    hlt_forever()
 }
 
 pub fn test_panic_handler(info: &PanicInfo) -> ! {
     serial_println!("[failed]\n");
     serial_println!("{}\n", info);
-    exit_qemu(QemuExitCode::Fail);
-
-    // CPU never halts because we exit qemu before
-    hlt_forever();
+    exit_qemu(QemuExitCode::Fail)
 }
 
 /// Generic trait to implement test debug logging

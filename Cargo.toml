@@ -1,3 +1,5 @@
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [package]
 name = "trust"
 description = "A small x86_64 kernel written in Rust to learn how kernels work."
@@ -5,11 +7,6 @@ readme = "README.md"
 repository = "https://github.com/michihupf/trust-kernel"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[lib]
-test = true
 
 [features]
 verbose-vm = ["q-printonhost"]
@@ -24,6 +21,7 @@ pc-keyboard = "0.5.0"
 linked_list_allocator = "0.9.0"
 bitflags = "2.6.0"
 rlibc = "1.0.0"
+entry = "0.2.1"
 
 [dependencies.crossbeam-queue]
 version = "0.3.11"
@@ -31,7 +29,7 @@ default-features = false
 features = ["alloc"]
 
 [dependencies.multiboot2]
-version = "0.20.2"
+version = "0.22.2"
 default-features = false
 
 [dependencies.lazy_static]

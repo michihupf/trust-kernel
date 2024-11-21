@@ -13,9 +13,9 @@ long_mode_start:
 	mov fs, ax
 	mov gs, ax
 
-	; call kernel_main
-	extern kernel_main
-	call kernel_main
+	; call kernel_entrypoint
+	extern kernel_entrypoint
+	call kernel_entrypoint
 	
 	;   print `OK` to screen
 	mov eax, 0x0f4b0f4f

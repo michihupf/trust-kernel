@@ -1,10 +1,9 @@
 #!/bin/bash
 
 if [[ $1 == *"/deps/"* ]]; then
-  _MAKE_OP=test
+  _OP=_test
 else
-  _MAKE_OP=run
+  _OP=_run
 fi
 
-
-make $_MAKE_OP KERNEL_BIN="$1"
+just $_OP "$1"

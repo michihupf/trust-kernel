@@ -45,8 +45,8 @@ impl StackAllocator {
                 }
 
                 // create a new stack
-                let stack_top = end.start_address() + PAGE_SIZE;
-                Some(Stack::new(stack_top, start.start_address()))
+                let stack_top = end.start() + PAGE_SIZE;
+                Some(Stack::new(stack_top, start.start()))
             }
             _ => None, // not enough space for stack
         }

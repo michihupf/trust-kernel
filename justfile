@@ -17,6 +17,10 @@ debug params="":
 test params="":
     @cargo test {{params}} {{feature_flag}}
 
+dint params="":
+    @cargo build {{params}} {{feature_flag}}
+    just _dint 
+
 _run kernel_bin: (iso kernel_bin)
     @qemu-system-{{arch}} -serial stdio -cdrom {{isopath}} -s
 
@@ -27,7 +31,7 @@ _test kernel_bin: (iso kernel_bin)
     @qemu-system-{{arch}} -device isa-debug-exit,iobase=0xf4,iosize=0x04 -serial stdio -display none -cdrom {{isopath}} || if [ $? -eq 33 ]; then exit 0; else exit 1; fi
 
 _dint kernel_bin: (iso kernel_bin)
-    @qemu-system-{{arch}} -serial -d int -no-reboot -cdrom {{isopath}}
+    @qemu-system-{{arch}} -serial stdio -d int -no-reboot -cdrom {{isopath}}
 
 gdb:
     @gdb $(KERNEL_BIN) -ex "target remote :1234"

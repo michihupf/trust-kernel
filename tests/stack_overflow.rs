@@ -30,7 +30,7 @@ static TEST_GDT: Once<GlobalDescriptorTable> = Once::new();
 trust::entry_asm!();
 
 #[no_mangle]
-pub extern "C" fn kernel_entrypoint(mbi_ptr: usize) -> ! {
+pub extern "C" fn kentry(mbi_ptr: usize) -> ! {
     serial_print!("Testing stack overflow...\t");
 
     // Safety: mbi placed in by multiboot2 bootloader

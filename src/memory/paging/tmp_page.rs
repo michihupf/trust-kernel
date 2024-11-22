@@ -31,7 +31,7 @@ impl TemporaryPage {
             "temporary page is already mapped"
         );
         active_table.map_to(self.page, frame, EntryFlags::WRITABLE, &mut self.allocator);
-        self.page.start_address()
+        self.page.start()
     }
 
     /// Unmaps the temporary page in the active table.

@@ -15,7 +15,7 @@ extern crate alloc;
 trust::entry_asm!();
 
 #[no_mangle]
-pub extern "C" fn kernel_entrypoint(mbi_ptr: usize) -> ! {
+pub extern "C" fn kentry(mbi_ptr: usize) -> ! {
     // Safety: mbi is placed here by mutliboot2 bootloader
     let mbi = unsafe { BootInformation::load(mbi_ptr as *const BootInformationHeader).unwrap() };
 

@@ -12,35 +12,36 @@ use crate::{
 };
 
 #[repr(C)]
-struct XSDT {
+struct Xsdt {
     header: AcpiSDTHeader,
     entries: Vec<u64>,
 }
 
-trait ACPIEntry {
+trait AcpiEntry {
     fn sig() -> &'static str;
 }
 
-struct MADT;
-impl ACPIEntry for MADT {
+struct Madt;
+
+impl AcpiEntry for Madt {
     fn sig() -> &'static str {
         "APIC"
     }
 }
 
 #[repr(C)]
-struct RSDT {
+struct Rsdt {
     header: AcpiSDTHeader,
     entries: Vec<AcpiSDTHeader>,
 }
 
-impl RSDT {
+impl Rsdt {
     /// Reads the RSDT from its physical address.
     ///
     /// # Safety
     /// The caller must ensure that `addr` is aligned, readable and
     /// the RSDT is located at `addr`.
-    unsafe fn new(addr: usize) -> RSDT {
+    unsafe fn new(addr: usize) -> Rsdt {
         let p_header = addr as *const AcpiSDTHeader;
         let p_entry0 = p_header.add(1) as *const u32;
 
@@ -53,7 +54,7 @@ impl RSDT {
             .map(|entry| AcpiSDTHeader::new(*entry))
             .collect::<Vec<_>>();
 
-        RSDT { header, entries }
+        Rsdt { header, entries }
     }
 
     fn checksum_is_valid(&self) -> bool {
@@ -65,7 +66,7 @@ impl RSDT {
         data.iter().fold(0u8, |a, &b| a.wrapping_add(b)) == 0
     }
 
-    fn has<T: ACPIEntry>(&self) -> bool {
+    fn has<T: AcpiEntry>(&self) -> bool {
         self.entries.iter().any(|x| x.signature() == T::sig())
     }
 
@@ -133,7 +134,7 @@ pub fn try_init(mbi: &BootInformation, memory_controller: &mut MemoryController)
 
         memory_controller.id_map(rsdp.rsdt_address(), EntryFlags::PRESENT);
         // Safety: rsdp is valid
-        let rsdt = unsafe { RSDT::new(rsdp.rsdt_address()) };
+        let rsdt = unsafe { Rsdt::new(rsdp.rsdt_address()) };
 
         for entry in rsdt.entries {
             println!("Found {}.", entry.signature());

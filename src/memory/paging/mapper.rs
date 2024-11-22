@@ -1,6 +1,9 @@
 use core::ptr::Unique;
 
-use crate::memory::{paging::ENTRY_COUNT, Frame, FrameAllocator, PAGE_SIZE};
+use crate::{
+    memory::{paging::ENTRY_COUNT, Frame, FrameAllocator, PAGE_SIZE},
+    println,
+};
 
 use super::{
     entry::EntryFlags,
@@ -80,7 +83,7 @@ impl Mapper {
     /// Translates a virtual address to a phyiscal one.
     pub fn translate(&self, addr: VirtAddr) -> Option<PhysAddr> {
         let offset = addr % PAGE_SIZE;
-        self.translate_page(Page::containing_address(addr))
+        self.translate_page(Page::containing(addr))
             .map(|frame| frame.start() + offset)
     }
 
@@ -112,7 +115,7 @@ impl Mapper {
     where
         A: FrameAllocator,
     {
-        let page = Page::containing_address(frame.start());
+        let page = Page::containing(frame.start());
         self.map_to(page, frame, flags, allocator);
     }
 
@@ -126,7 +129,7 @@ impl Mapper {
     where
         A: FrameAllocator,
     {
-        assert!(self.translate(page.start_address()).is_some());
+        assert!(self.translate(page.start()).is_some());
 
         let p1 = self
             .p4_mut()
@@ -141,7 +144,7 @@ impl Mapper {
         use x86_64::instructions::tlb;
         use x86_64::VirtAddr;
 
-        tlb::flush(VirtAddr::new(page.start_address() as u64));
+        tlb::flush(VirtAddr::new(page.start() as u64));
 
         // TODO free p(1,2,3) if empty
         allocator.kfree_frame(frame);

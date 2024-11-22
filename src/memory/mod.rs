@@ -11,7 +11,7 @@ pub mod stack_allocator;
 
 use crate::status_print;
 
-pub use self::paging::remap_kernel;
+pub use self::paging::kremap;
 pub use paging::test_paging;
 
 pub use heap::ALLOCATOR;
@@ -92,7 +92,7 @@ impl MemoryController {
 
     pub fn id_map(&mut self, addr: PhysAddr, flags: EntryFlags) {
         self.active_table.map_to(
-            Page::containing_address(addr),
+            Page::containing(addr),
             Frame::containing(addr),
             flags,
             &mut self.frame_allocator,
@@ -109,12 +109,12 @@ pub fn init(mbi: &BootInformation) -> MemoryController {
         .filter(|s| s.is_allocated())
         .map(|s| s.start_address())
         .min()
-        .unwrap() as usize;
+        .unwrap() as PhysAddr;
     let kernel_end = elf_sections
         .filter(|s| s.is_allocated())
         .map(|s| s.end_address())
         .max()
-        .unwrap() as usize;
+        .unwrap() as PhysAddr;
 
     // SAFETY: memory areas will never be cleaned up or moved and USABLE areas are usable.
     let mut frame_allocator = unsafe {
@@ -131,10 +131,12 @@ pub fn init(mbi: &BootInformation) -> MemoryController {
     status_print!("enabling NO_EXECUTE" => crate::enable_nxe_bit());
     status_print!("enabling write protection" => crate::enable_wp_bit());
 
-    let mut active_table = paging::remap_kernel(&mut frame_allocator, mbi);
+    let mut active_table = paging::kremap(&mut frame_allocator, mbi, kernel_start);
 
-    let heap_start = Page::containing_address(HEAP_START);
-    let heap_end = Page::containing_address(HEAP_END - 1);
+    status_print!("remapping kernel done");
+
+    let heap_start = Page::containing(HEAP_START);
+    let heap_end = Page::containing(HEAP_END - 1);
 
     for page in Page::range_inclusive(heap_start, heap_end) {
         active_table.map(page, EntryFlags::WRITABLE, &mut frame_allocator);

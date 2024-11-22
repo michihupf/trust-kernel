@@ -9,7 +9,7 @@ use multiboot2::BootInformation;
 use tmp_page::TemporaryPage;
 use x86_64::structures::paging::PhysFrame;
 
-use crate::println;
+use crate::{println, status_print};
 
 use super::{Frame, FrameAllocator, PAGE_SIZE};
 
@@ -30,7 +30,7 @@ pub struct Page {
 }
 
 impl Page {
-    pub fn containing_address(addr: VirtAddr) -> Page {
+    pub fn containing(addr: VirtAddr) -> Page {
         assert!(
             !(0x0000_8000_0000_0000..0xffff_8000_0000_0000).contains(&addr),
             "invalid address: 0x{addr:x}"
@@ -44,7 +44,7 @@ impl Page {
         PageIter { start, end }
     }
 
-    pub fn start_address(&self) -> VirtAddr {
+    pub fn start(&self) -> VirtAddr {
         self.number * PAGE_SIZE
     }
 
@@ -99,11 +99,11 @@ pub fn test_paging<A>(allocator: &mut A)
 where
     A: FrameAllocator,
 {
-    // Safety: This is the only active page table!
+    // SAFETY: This is the only active page table!
     let mut page_table = unsafe { ActivePageTable::new() };
 
     let addr = 42 * 512 * 512 * 4096; // 42-th P3 entry
-    let page = Page::containing_address(addr);
+    let page = Page::containing(addr);
     let frame = allocator.kalloc_frame().expect("no more frames");
 
     println!("None = {:?}, map to {frame:?}", page_table.translate(addr));
@@ -113,11 +113,11 @@ where
     println!("Some = {:?}", page_table.translate(addr));
     println!("next free frame: {:?}", allocator.kalloc_frame());
 
-    page_table.unmap(Page::containing_address(addr), allocator);
+    page_table.unmap(Page::containing(addr), allocator);
     // println!("None = {:?}", page_table.translate(addr));
 
     // println!("{:x}", unsafe {
-    // *(Page::containing_address(addr).start_address() as *const u64)
+    // *(Page::containing(addr).start() as *const u64)
     // });
 }
 
@@ -181,13 +181,7 @@ impl ActivePageTable {
         use x86_64::registers::control;
         use x86_64::PhysAddr;
 
-        let p4_frame = match self.p4()[511].pointed_frame() {
-            None => {
-                println!("ERROR: switching active page tables failed. p4 frame was None.");
-                panic!("ERROR: switching active page tables failed. p4 frame was None.");
-            }
-            Some(v) => v,
-        };
+        let p4_frame = self.p4()[511].pointed_frame().unwrap();
 
         let old_table = InactivePageTable { p4_frame };
 
@@ -228,12 +222,16 @@ impl InactivePageTable {
     }
 }
 
-pub fn remap_kernel<A>(allocator: &mut A, mbi: &BootInformation) -> ActivePageTable
+pub fn kremap<A>(
+    allocator: &mut A,
+    mbi: &BootInformation,
+    kernel_start: PhysAddr,
+) -> ActivePageTable
 where
     A: FrameAllocator,
 {
     let mut tmp_page = TemporaryPage::new(Page { number: 0xcafebabe }, allocator);
-    // Safety: used to set the new active page table below. It is the only one!
+    // SAFETY: used to set the new active page table below. It is the only one!
     let mut active_table = unsafe { ActivePageTable::new() };
     let mut new_table = {
         let frame = allocator.kalloc_frame().expect("no more frames");
@@ -242,6 +240,8 @@ where
 
     active_table.with(&mut new_table, &mut tmp_page, |mapper| {
         let elf_sections = mbi.elf_sections().expect("Memory map tag required");
+        // this is the page offset we need such that the kernel starts at 0xC000_0000
+        let offset = 0xC000_0000 - kernel_start;
 
         for section in elf_sections {
             use entry::EntryFlags;
@@ -255,55 +255,61 @@ where
                 "sections need to be page aligned"
             );
 
-            println!(
-                "mapping section at addr: {:#x}, size: {:#x}",
-                section.start_address(),
-                section.size()
-            );
-
             let flags = EntryFlags::from_elf_section(&section);
 
             let start_frame = Frame::containing(section.start_address() as usize);
             let end_frame = Frame::containing(section.end_address() as usize - 1);
             for frame in Frame::range_inclusive(start_frame, end_frame) {
-                mapper.id_map(frame, flags, allocator);
+                let page = Page::containing(frame.start() + offset);
+                mapper.map_to(page, frame, flags, allocator);
             }
+            println!(
+                "mapped elf section at addr: {:#x} to {:#x}, size: {:#x}",
+                section.start_address(),
+                section.start_address() + offset as u64,
+                section.size()
+            );
         }
 
-        println!("mapping vga buffer at 0xb8000");
-        let vga_buffer_frame = Frame::containing(0xb8000);
-        mapper.id_map(vga_buffer_frame, EntryFlags::WRITABLE, allocator);
+        status_print! {
+            "mapping vga buffer at 0xb8000"
+            let vga_buffer_frame = Frame::containing(0xb8000);
+            mapper.id_map(vga_buffer_frame, EntryFlags::WRITABLE, allocator);
+        }
 
         // identity map BIOS area (1st MB)
-        // for frame in Frame::range_inclusive(
-        //     Frame::containing_address(0x0),
-        //     Frame::containing_address(0xfffff),
-        // ) {
+        // for frame in Frame::range_inclusive(Frame::containing(0x0), Frame::containing(0xfffff)) {
         //     // skip VGA text buffer
-        //     if frame == Frame::containing_address(0xb8000) {
+        //     if frame == Frame::containing(0xb8000) {
         //         continue;
         //     }
         //     mapper.id_map(frame, EntryFlags::PRESENT, allocator);
         // }
 
-        println!(
-            "mapping mbi at {:#x}, end: {:#x}",
-            mbi.start_address(),
-            mbi.end_address() - 1
-        );
         let mbi_start = Frame::containing(mbi.start_address());
         let mbi_end = Frame::containing(mbi.end_address() - 1);
         for frame in Frame::range_inclusive(mbi_start, mbi_end) {
             mapper.id_map(frame, EntryFlags::PRESENT, allocator);
         }
+        println!(
+            "mapped mbi at {:#x}, end: {:#x}",
+            mbi.start_address(),
+            mbi.end_address() - 1
+        );
     });
 
-    let old_table = active_table.switch(new_table);
+    status_print! {
+        "switching page tables"
+        let old_table = active_table.switch(new_table);
+    }
 
-    println!("creating guard page from previous p4 table");
-    let old_p4 = Page::containing_address(old_table.p4_frame.start());
-    active_table.unmap(old_p4, allocator);
-    println!("guard page at {:#x}", old_p4.start_address());
+    status_print! {
+        "creating guard page from previous p4 table"
+        let old_p4 = Page::containing(old_table.p4_frame.start());
+        active_table.unmap(old_p4, allocator);
+    }
+
+    println!("guard page at {:#x}", old_p4.start());
 
     active_table
 }

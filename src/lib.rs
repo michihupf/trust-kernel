@@ -27,7 +27,6 @@
 //     clippy::suspicious
 // )]
 #![allow(clippy::cargo_common_metadata)]
-#![allow(clippy::upper_case_acronyms)]
 #![no_std]
 #![no_main]
 
@@ -125,7 +124,7 @@ entry_asm!();
 
 #[cfg(test)]
 #[no_mangle]
-pub extern "C" fn kernel_entrypoint(mbi_ptr: usize) -> ! {
+pub extern "C" fn kentry(mbi_ptr: usize) -> ! {
     kernel_main(mbi_ptr);
 }
 

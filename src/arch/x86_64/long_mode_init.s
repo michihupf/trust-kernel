@@ -1,6 +1,6 @@
 .code64
 .global _long_mode_start
-.extern kernel_entrypoint
+.extern kentry
 
 .section .text
 
@@ -13,7 +13,7 @@ _long_mode_start:
     mov fs, ax
     mov gs, ax
 
-    call kernel_entrypoint
+    call kentry
 
 # ATTENTION! Kernel return is undefined behaviour and should never happen as enforced by
 # the Rust langauge. We will trap execution anyway should the above call ever return for 

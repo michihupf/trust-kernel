@@ -7,7 +7,7 @@
 trust::entry_asm!();
 
 #[no_mangle]
-pub extern "C" fn kernel_entrypoint(_mbi_ptr: usize) -> ! {
+pub extern "C" fn kentry(_mbi_ptr: usize) -> ! {
     #[cfg(not(test))]
     trust::kernel_main(_mbi_ptr);
 
